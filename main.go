@@ -22,6 +22,7 @@ var (
 	POSTGRES_DB   = envWithDefault("POSTGRES_DB", "scrapbook")
 	POSTGRES_SSL  = envWithDefault("POSTGRES_SSL", "disable")
 	EDIT_PASSWORD = envWithDefault("EDIT_PASSWORD", "changeme")
+	EDIT_COOKIE   = envWithDefault("EDIT_COOKIE", "scrapbook-edit")
 	HTTP_PORT     = envWithDefault("HTTP_PORT", "8080")
 	sevMap        = [6]string{"FATAL", "CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"}
 	db            *sql.DB

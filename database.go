@@ -64,5 +64,10 @@ func dbConnect(n int) error {
 		return err
 	}
 
+	_, err = db.Exec("CREATE TABLE IF NOT EXISTS scrapbook_data.editors (session_id VARCHAR(256) NOT NULL, timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP)")
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
