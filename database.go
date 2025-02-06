@@ -19,22 +19,24 @@ func dbConnect(n int) error {
 		logMessage(2, "Retrying connection in 5 seconds...")
 		time.Sleep(5 * time.Second)
 		err = dbConnect(n - 1)
-		if err != nil {
-			return err
-		}
+		return err
 	} else if err != nil && n <= 1 {
 		return err
 	} else {
-		logMessage(5, "Schema created")
+		logMessage(5, "PostgreSQL connection established")
 	}
 
-	err = db.QueryRow("SELECT version FROM configuration").Scan()
+	var dbVersion string
+	err = db.QueryRow("SELECT value FROM scrapbook_data.configuration WHERE item = 'version'").Scan(&dbVersion)
 	if err == nil {
-		return err
+		logMessage(4, "Scrapbook schema present. Continuing startup...")
+		return nil
+	} else {
+		logMessage(4, "Scrapbook schema not present. Installing...")
 	}
 
 	logMessage(5, "Creating tables")
-	_, err = db.Exec("CREATE TABLE IF NOT EXISTS scrapbook_data.configuration (item VARCHAR(16) NOT NULL PRIMARY KEY, value VARCHAR(16) NOT NULL, favicon BYTEA NULL)")
+	_, err = db.Exec("CREATE TABLE IF NOT EXISTS scrapbook_data.configuration (item VARCHAR(16) NOT NULL PRIMARY KEY, value TEXT NOT NULL)")
 	if err != nil {
 		return err
 	}
@@ -44,7 +46,7 @@ func dbConnect(n int) error {
 		return err
 	}
 
-	_, err = db.Exec("CREATE TABLE IF NOT EXISTS scrapbook_data.elements (element_id VARCHAR(8) NOT NULL PRIMARY KEY, parent_type VARCHAR(8) NOT NULL DEFAULT 'page', parent_id VARCHAR(8) NULL, sequence_number INT NOT NULL DEFAULT '1', element_name VARCHAR(128) NOT NULL DEFAULT 'New Element',  style_id VARCHAR(8) NOT NULL DEFAULT 'DEFAULTS', pos_anchor VARCHAR(16) NULL, pos_x REAL NOT NULL DEFAULT '0', pos_y REAL NOT NULL DEFAULT '0', pos_z INT NOT NULL DEFAULT '0', width INT NOT NULL DEFAULT 10, height INT NOT NULL DEFAULT 10, is_link SMALLINT NOT NULL DEFAULT '0' , link_url VARCHAR(128) NULL, content TEXT NULL)")
+	_, err = db.Exec("CREATE TABLE IF NOT EXISTS scrapbook_data.elements (element_id VARCHAR(8) NOT NULL PRIMARY KEY, parent_type VARCHAR(8) NOT NULL DEFAULT 'page', parent_id VARCHAR(128) NULL, sequence_number INT NOT NULL DEFAULT '1', element_name VARCHAR(128) NOT NULL DEFAULT 'New Element',  style_id VARCHAR(8) NOT NULL DEFAULT 'DEFAULTS', pos_anchor VARCHAR(16) NULL, pos_x REAL NOT NULL DEFAULT '0', pos_y REAL NOT NULL DEFAULT '0', pos_z INT NOT NULL DEFAULT '0', width INT NOT NULL DEFAULT 10, height INT NOT NULL DEFAULT 10, is_link SMALLINT NOT NULL DEFAULT '0' , link_url VARCHAR(128) NULL, content TEXT NULL)")
 	if err != nil {
 		return err
 	}
@@ -60,6 +62,27 @@ func dbConnect(n int) error {
 	}
 
 	_, err = db.Exec("CREATE TABLE IF NOT EXISTS scrapbook_data.editors (session_id VARCHAR(256) NOT NULL PRIMARY KEY, timestamp TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP)")
+	if err != nil {
+		return err
+	}
+
+	// Insert initial data
+	_, err = db.Exec("INSERT INTO scrapbook_data.configuration(item, value) VALUES('version', '1')")
+	if err != nil {
+		return err
+	}
+
+	_, err = db.Exec("INSERT INTO scrapbook_data.pages(page_uri, page_title) VALUES('/', 'Homepage')")
+	if err != nil {
+		return err
+	}
+
+	_, err = db.Exec("INSERT INTO scrapbook_data.elements(element_id, parent_type, parent_id, sequence_number, element_name, style_id, pos_anchor, pos_x, pos_y, pos_z, width, height, is_link, link_url, content) VALUES('AAAAAAAA', 'page', '/', 0, 'Default Element', 'AAAAAAAA', 'none', '0', '0', '0', '200', '200', 0, '', 'Hello world')")
+	if err != nil {
+		return err
+	}
+
+	_, err = db.Exec("INSERT INTO scrapbook_data.styles(style_id, style_name, background_type, background_data, background_position, background_size, font_family, font_size, font_weight, font_color, margin, padding, text_align, border_width, border_style, border_color, custom_css) VALUES('AAAAAAAA', 'Default Style', 'color', '#123123', 'center', 'cover', 'sans-serif', '10', 'normal', '#000000', '10', '10', 'left', '1', 'solid', '#ff0000', 'font-weight: bold;')")
 	if err != nil {
 		return err
 	}

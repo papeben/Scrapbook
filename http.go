@@ -9,7 +9,8 @@ import (
 )
 
 type scrapbookSitemap struct {
-	Pages []scrapbookPage
+	Pages  []scrapbookPage
+	Styles []scrapbookStyle
 }
 
 type scrapbookPage struct {
@@ -98,7 +99,8 @@ func httpHandler(response http.ResponseWriter, request *http.Request) {
 	// Serve sitemap
 	if request.URL.Path == "/sitemap.json" {
 		var (
-			pages []scrapbookPage
+			pages  []scrapbookPage  = []scrapbookPage{}
+			styles []scrapbookStyle = []scrapbookStyle{}
 		)
 
 		pageRows, err := db.Query("SELECT page_title, page_uri FROM scrapbook_data.pages")
@@ -118,10 +120,30 @@ func httpHandler(response http.ResponseWriter, request *http.Request) {
 				},
 				getNestedElements("page", uri),
 			})
-
 		}
 
-		jsonBytes, err := json.Marshal(pages)
+		styleRows, err := db.Query("SELECT style_id, style_name, background_type, background_data, background_position, background_size, font_family, font_size, font_weight, font_color, margin, padding, text_align, border_width, border_style, border_color, custom_css FROM scrapbook_data.styles")
+		if err != nil {
+			logMessage(2, err.Error())
+			return
+		}
+
+		for styleRows.Next() {
+			var id, name, background_type, background_data, background_position, background_size, font_family, font_color, text_align, font_weight, border_style, border_color, custom_css string
+			var border_width int
+			var font_size, margin, padding float32
+			styleRows.Scan(&id, &name, &background_type, &background_data, &background_position, &background_size, &font_family, &font_size, &font_weight, &font_color, &margin, &padding, &text_align, &border_width, &border_style, &border_color, &custom_css)
+
+			styles = append(styles, scrapbookStyle{
+				id, name, background_type, background_data, background_position, background_size, font_family, font_size, font_weight, font_color, margin, padding, text_align, border_width, border_style, border_color, custom_css,
+			})
+		}
+
+		jsonBytes, err := json.Marshal(scrapbookSitemap{
+			pages,
+			styles,
+		})
+
 		if err != nil {
 			logMessage(2, err.Error())
 			return

@@ -8,13 +8,20 @@
             alert(1)
         }
 
+        async function editmode(password){
+            var res = await fetch(`/editapi/requestedit?p=${password}`)
+            if (res.ok) {
+                console.log("Edit mode active.")
+            }
+            else {
+                console.log("Invalid password.")
+            }
+        }
+
         window.onload = init
     </script>
     <body>
         <div id="page-frame">
-
-        </div>
-        <div id="edit-frame">
 
         </div>
     </body>
