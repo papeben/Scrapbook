@@ -4,7 +4,9 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"fmt"
+	"html/template"
 	"math/big"
+	"net/http"
 	"os"
 	"strconv"
 	"time"
@@ -20,15 +22,29 @@ var (
 	POSTGRES_DB   = envWithDefault("POSTGRES_DB", "scrapbook")
 	POSTGRES_SSL  = envWithDefault("POSTGRES_SSL", "disable")
 	EDIT_PASSWORD = envWithDefault("EDIT_PASSWORD", "changeme")
+	HTTP_PORT     = envWithDefault("HTTP_PORT", "8080")
 	sevMap        = [6]string{"FATAL", "CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"}
 	db            *sql.DB
+	formTemplate  *template.Template
 )
 
 func main() {
+	loadTemplates()
 	err := dbConnect(5)
 	if err != nil {
 		logMessage(0, fmt.Sprintf("Failed to connect to create database connection: %s", err.Error()))
 		os.Exit(1)
+	}
+
+	http.HandleFunc("/", httpHandler)
+	server := &http.Server{
+		Addr:              ":" + HTTP_PORT,
+		ReadHeaderTimeout: 10 * time.Second,
+	}
+	logMessage(4, fmt.Sprintf("Listening for incoming requests on %s", server.Addr))
+	err = server.ListenAndServe()
+	if err != nil {
+		logMessage(0, fmt.Sprintf("Server error: %s", err.Error()))
 	}
 }
 
@@ -64,7 +80,7 @@ func logMessage(severity int, message string) {
 	}
 }
 
-func GenerateRandomString(length int) string {
+func generateRandomString(length int) string {
 	charset := "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 	charsetLength := big.NewInt(int64(len(charset)))
 	bytes := make([]byte, length)
@@ -80,4 +96,13 @@ func GenerateRandomString(length int) string {
 	}
 
 	return string(bytes)
+}
+
+func loadTemplates() {
+	var err error
+	formTemplate, err = template.ParseFiles("scrapbook.html") // Preload form page template into memory
+	if err != nil {
+		logMessage(0, fmt.Sprintf("Unable to load HTML template from scrapbook.html: %s", err.Error()))
+		os.Exit(1)
+	}
 }
