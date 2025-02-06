@@ -81,39 +81,3 @@ func GenerateRandomString(length int) string {
 
 	return string(bytes)
 }
-
-func dbConnect(n int) error {
-	var err error
-	db, err = sql.Open("postgres", fmt.Sprintf("postgres://%s:%s@%s/%s?sslmode=%s", POSTGRES_USER, POSTGRES_PASS, POSTGRES_HOST, POSTGRES_DB, POSTGRES_SSL))
-	if err != nil {
-		return err
-	}
-
-	_, err = db.Exec("CREATE SCHEMA IF NOT EXISTS scrapbook_internal")
-	if err != nil && n > 1 {
-		logMessage(2, fmt.Sprintf("Failed to create database connection: %s", err.Error()))
-		logMessage(2, "Retrying connection in 5 seconds...")
-		time.Sleep(5 * time.Second)
-		err = dbConnect(n - 1)
-		if err != nil {
-			return err
-		}
-	} else if err != nil && n <= 1 {
-		return err
-	} else {
-		logMessage(5, "Schema created")
-	}
-
-	// Test DB
-	err = db.QueryRow("SELECT version FROM configuration").Scan()
-	if err == nil {
-		return err
-	}
-
-	_, err = db.Exec("CREATE TABLE IF NOT EXISTS scrapbook_internal.configuration (db_version VARCHAR(16) NOT NULL)")
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
