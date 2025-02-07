@@ -5,19 +5,20 @@
     </head>
     <script>
         var Sitemap
-        var editmode = false
+        var editMode = false
+        var editTargetDiv
 
         async function init(){
             var res = await fetch(`/sitemap.json`)
             Sitemap = await res.json()
             console.log(Sitemap)
-            renderPage(window.location.pathname)
+            renderPage()
         }
 
-        function renderPage(path){
+        function renderPage(){
             document.getElementById("page-frame").innerHTML = ""
             for (let i = 0; i < Sitemap.Pages.length; i++){
-                if (Sitemap.Pages[i].Header.URI == path) {
+                if (Sitemap.Pages[i].Header.URI == window.location.pathname) {
                     for (let j = 0; j < Sitemap.Pages[i].Elements.length; j++){
                         document.getElementById("page-frame").appendChild(renderElement(Sitemap.Pages[i].Elements[j]))
                     }
@@ -28,7 +29,7 @@
 
         function renderElement(element){
             console.log(element.ID)
-            var newDOMElement 
+            let newDOMElement 
             if (element.IsLink) {
                 newDOMElement = document.createElement("a")
                 newDOMElement.href = element.LinkURL
@@ -62,8 +63,32 @@
                 }
             }
 
-        
-            newDOMElement.contentEditable = editmode
+            if (editMode){
+                if (element.Children.length == 0){
+                    newDOMElement.contentEditable = true
+                }
+                
+                newDOMElement.addEventListener('keypress', function(event) {
+                    if (event.keyCode == 13 && event.shiftKey == false) { // enter keycode is 13
+                    event.preventDefault(); 
+                    document.execCommand("insertLineBreak");    
+                    } 
+                });
+
+                newDOMElement.addEventListener("click", function(e){
+                    editTargetDiv = element
+                    e.stopPropagation()
+                })
+
+                newDOMElement.addEventListener("input", function(e){
+                    editTargetDiv.Content = document.getElementById(editTargetDiv.ID).innerText
+                    e.stopPropagation()
+                })
+                
+                
+                
+            }
+            
             
             
             for (var i = 0; i < element.Children.length; i++){
@@ -74,10 +99,12 @@
 
         }
 
-        async function editmode(password){
+        async function enableEdit(password){
             var res = await fetch(`/editapi/requestedit?p=${password}`)
             if (res.ok) {
                 console.log("Edit mode active.")
+                editMode = true
+                renderPage()
             }
             else {
                 console.log("Invalid password.")
