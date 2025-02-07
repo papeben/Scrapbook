@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"html/template"
 	"net/http"
 	"net/url"
 )
@@ -83,6 +84,15 @@ func httpHandler(response http.ResponseWriter, request *http.Request) {
 		logMessage(4, fmt.Sprintf("Editor %s authenticated", request.RemoteAddr))
 		token, err := createEditorSession()
 		if err != nil {
+			logMessage(2, err.Error())
+			response.WriteHeader(500)
+			fmt.Fprint(response, "Error.")
+			return
+		}
+
+		_, err = db.Exec("INSERT INTO scrapbook_data.editors(session_id) VALUES($1)", token)
+		if err != nil {
+			logMessage(2, err.Error())
 			response.WriteHeader(500)
 			fmt.Fprint(response, "Error.")
 			return
@@ -94,6 +104,41 @@ func httpHandler(response http.ResponseWriter, request *http.Request) {
 		fmt.Fprint(response, "Ok.")
 		return
 
+	}
+
+	// Edit API save
+	if request.URL.Path == "/editapi/save" && request.Method == "POST" {
+		var sitemap scrapbookSitemap
+
+		sessionCookie, err := request.Cookie(EDIT_COOKIE)
+		if err != nil {
+			response.WriteHeader(400)
+			fmt.Fprintf(response, "Error.")
+			return
+		}
+
+		var token string
+		err = db.QueryRow("SELECT session_id FROM scrapbook_data.editors WHERE session_id = $1", sessionCookie.Value).Scan(&token)
+		if err == sql.ErrNoRows {
+			response.WriteHeader(400)
+			fmt.Fprintf(response, "Error.")
+			return
+		} else if err != nil {
+			logMessage(2, err.Error())
+			response.WriteHeader(500)
+			fmt.Fprintf(response, "Error.")
+			return
+		}
+
+		err = json.NewDecoder(request.Body).Decode(&sitemap)
+		if err != nil {
+			logMessage(2, err.Error())
+			response.WriteHeader(500)
+			fmt.Fprintf(response, "Error.")
+		} else {
+			fmt.Fprintf(response, "Ok.")
+		}
+		return
 	}
 
 	// Serve sitemap
@@ -171,6 +216,7 @@ func httpHandler(response http.ResponseWriter, request *http.Request) {
 		}
 	}
 
+	formTemplate, err = template.ParseFiles("scrapbook.html")
 	err = formTemplate.Execute(response, page)
 	if err != nil {
 		logMessage(1, err.Error())

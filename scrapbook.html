@@ -111,11 +111,34 @@
             }
         }
 
+        async function saveEdit(url, data) {
+            // Create a request options object
+            const options = {
+                method: 'POST', // HTTP method
+                headers: {
+                'Content-Type': 'application/json', // Set the request header to JSON
+                },
+                body: JSON.stringify(Sitemap), // Convert the data object to a JSON string
+            };
+
+            // Use fetch to send the request
+            var res = await fetch("/editapi/save", options)
+            if (res.ok) {
+                console.log("Changes saved.")
+            }
+            else {
+                console.log("Error.")
+            }
+        }
+
         window.onload = init
     </script>
     <body>
         <div id="page-frame">
 
+        </div>
+        <div id="edit-frame" style="position: fixed; top: calc(100vh - 100px); left: 0px; height: 100px; width: 100rem; background-color: brown;">
+            <button onclick="saveEdit()">Save</button>
         </div>
     </body>
     </html>
