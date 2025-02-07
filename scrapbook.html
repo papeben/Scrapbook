@@ -4,8 +4,74 @@
         <title>{{ .Title }}</title>
     </head>
     <script>
-        function init(){
-            alert(1)
+        var Sitemap
+        var editmode = false
+
+        async function init(){
+            var res = await fetch(`/sitemap.json`)
+            Sitemap = await res.json()
+            console.log(Sitemap)
+            renderPage(window.location.pathname)
+        }
+
+        function renderPage(path){
+            document.getElementById("page-frame").innerHTML = ""
+            for (let i = 0; i < Sitemap.Pages.length; i++){
+                if (Sitemap.Pages[i].Header.URI == path) {
+                    for (let j = 0; j < Sitemap.Pages[i].Elements.length; j++){
+                        document.getElementById("page-frame").appendChild(renderElement(Sitemap.Pages[i].Elements[j]))
+                    }
+                    return
+                }
+            }
+        }
+
+        function renderElement(element){
+            console.log(element.ID)
+            var newDOMElement 
+            if (element.IsLink) {
+                newDOMElement = document.createElement("a")
+                newDOMElement.href = element.LinkURL
+            }
+            else {
+                newDOMElement = document.createElement("div")
+            }
+            
+            newDOMElement.innerHTML = element.Content
+            newDOMElement.style.height = `${element.Height}rem`
+            newDOMElement.style.width = `${element.Width}rem`
+            newDOMElement.id = element.ID
+
+            for (var i = 0; i < Sitemap.Styles.length; i++){
+                if (Sitemap.Styles[i].ID == element.StyleID) {
+                    let s = Sitemap.Styles[i]
+                    if (s.BackgroundType == "color"){
+                        newDOMElement.style.backgroundColor = s.BackgroundData
+                    }
+                    newDOMElement.style.backgroundPosition = s.BackgroundPosition
+                    newDOMElement.style.backgroundSize = s.BackgroundSite
+                    newDOMElement.style.border = `${s.BorderWidth}px ${s.BorderStyle} ${s.BorderColor}`
+                    newDOMElement.style.color = s.FontColor
+                    newDOMElement.style.fontFamily = s.FontFamily
+                    newDOMElement.style.fontSize = `${s.FontSize}rem`
+                    newDOMElement.style.fontWeight = s.FontWeight
+                    newDOMElement.style.margin = s.Margin
+                    newDOMElement.style.padding = s.Padding
+                    newDOMElement.style.textAlign = s.TextAlign
+                    break
+                }
+            }
+
+        
+            newDOMElement.contentEditable = editmode
+            
+            
+            for (var i = 0; i < element.Children.length; i++){
+                newDOMElement.appendChild(renderElement(element.Children[i]))
+            }
+
+            return newDOMElement
+
         }
 
         async function editmode(password){
