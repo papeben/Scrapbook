@@ -82,7 +82,17 @@ func dbConnect(n int) error {
 		return err
 	}
 
+	_, err = db.Exec("INSERT INTO scrapbook_data.elements(element_id, parent_type, parent_id, sequence_number, element_name, style_id, pos_anchor, pos_x, pos_y, pos_z, width, height, is_link, link_url, content) VALUES('BBBBBBBB', 'element', 'AAAAAAAA', 0, 'Default Nested Element', 'BBBBBBBB', 'none', '0', '0', '0', '20', '20', 0, '', 'Hello parent!')")
+	if err != nil {
+		return err
+	}
+
 	_, err = db.Exec("INSERT INTO scrapbook_data.styles(style_id, style_name, background_type, background_data, background_position, background_size, font_family, font_size, font_weight, font_color, margin, padding, text_align, border_width, border_style, border_color, custom_css) VALUES('AAAAAAAA', 'Default Style', 'color', '#123123', 'center', 'cover', 'sans-serif', '10', 'normal', '#000000', '10', '10', 'left', '1', 'solid', '#ff0000', 'font-weight: bold;')")
+	if err != nil {
+		return err
+	}
+
+	_, err = db.Exec("INSERT INTO scrapbook_data.styles(style_id, style_name, background_type, background_data, background_position, background_size, font_family, font_size, font_weight, font_color, margin, padding, text_align, border_width, border_style, border_color, custom_css) VALUES('BBBBBBBB', 'Default Child Style', 'color', '#420420', 'center', 'cover', 'sans-serif', '2', 'normal', '#000000', '10', '10', 'left', '1', 'solid', '#ff0000', 'font-weight: bold;')")
 	if err != nil {
 		return err
 	}
