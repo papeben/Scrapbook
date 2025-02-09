@@ -24,6 +24,7 @@ var (
 	EDIT_PASSWORD        = envWithDefault("EDIT_PASSWORD", "changeme")
 	EDIT_COOKIE          = envWithDefault("EDIT_COOKIE", "scrapbook-edit")
 	HTTP_PORT            = envWithDefault("HTTP_PORT", "8080")
+	MEDIA_DIRECTORY      = envWithDefault("MEDIA_DIR", "/media")
 	sevMap               = [6]string{"FATAL", "CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"}
 	imageResolutionSteps = [6]int{1080, 720, 576, 480, 360, 144}
 	db                   *sql.DB

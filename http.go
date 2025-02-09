@@ -11,6 +11,7 @@ import (
 	"image/png"
 	"net/http"
 	"net/url"
+	"strings"
 
 	"github.com/nfnt/resize"
 )
@@ -243,6 +244,30 @@ func httpHandler(response http.ResponseWriter, request *http.Request) {
 		return
 	}
 
+	if strings.HasPrefix(request.URL.Path, MEDIA_DIRECTORY) {
+		pathSplit := strings.Split(request.URL.Path, "/")
+		mediaID := strings.Split(pathSplit[len(pathSplit)-1], ".")[0]
+		var data []byte
+
+		err := db.QueryRow("SELECT media_data FROM scrapbook_data.media_versions WHERE media_version_id = $1", mediaID).Scan(&data)
+		if err == sql.ErrNoRows {
+			response.WriteHeader(404)
+			fmt.Fprint(response, `Not Found.`)
+			return
+		} else if err != nil {
+			response.WriteHeader(500)
+			fmt.Fprint(response, `Error.`)
+			return
+		}
+
+		_, err = response.Write(data)
+		if err != nil {
+			response.WriteHeader(500)
+			fmt.Fprint(response, `Error.`)
+			return
+		}
+	}
+
 	// Serve sitemap
 	if request.URL.Path == "/sitemap.json" {
 		var (
@@ -297,7 +322,7 @@ func httpHandler(response http.ResponseWriter, request *http.Request) {
 		for mediaRows.Next() {
 			var mediaID, mediaType, mediaName string
 			mediaRows.Scan(&mediaID, &mediaType, &mediaName)
-			mediaVersionRows, err := db.Query("SELECT media_version_id, version_width, version_height FROM scrapbook_data.media_versions")
+			mediaVersionRows, err := db.Query("SELECT media_version_id, version_width, version_height FROM scrapbook_data.media_versions WHERE media_id = $1", mediaID)
 			if err != nil {
 				logMessage(2, err.Error())
 				return
