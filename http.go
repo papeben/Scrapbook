@@ -66,6 +66,8 @@ func httpHandler(response http.ResponseWriter, request *http.Request) {
 		page  scrapbookPageHeader
 	)
 
+	logMessage(4, fmt.Sprintf("%s: %s", request.RemoteAddr, request.RequestURI))
+
 	// Edit API
 	if request.URL.Path == "/editapi/requestedit" {
 		query, err := url.ParseQuery(request.URL.RawQuery)
@@ -118,7 +120,7 @@ func httpHandler(response http.ResponseWriter, request *http.Request) {
 		}
 
 		var token string
-		err = db.QueryRow("SELECT session_id FROM scrapbook_data.editors WHERE session_id = $1", sessionCookie.Value).Scan(&token)
+		err = db.QueryRow("SELECT session_id FROM scrapbook_data.editors WHERE session_id = $1 AND timestamp > now() - INTERVAL '1 DAY'", sessionCookie.Value).Scan(&token)
 		if err == sql.ErrNoRows {
 			response.WriteHeader(400)
 			fmt.Fprintf(response, "Error.")
@@ -136,6 +138,7 @@ func httpHandler(response http.ResponseWriter, request *http.Request) {
 			response.WriteHeader(500)
 			fmt.Fprintf(response, "Error.")
 		} else {
+			updateFromSitemap(sitemap)
 			fmt.Fprintf(response, "Ok.")
 		}
 		return
@@ -167,6 +170,8 @@ func httpHandler(response http.ResponseWriter, request *http.Request) {
 			})
 		}
 
+		pageRows.Close()
+
 		styleRows, err := db.Query("SELECT style_id, style_name, background_type, background_data, background_position, background_size, font_family, font_size, font_weight, font_color, margin, padding, text_align, border_width, border_style, border_color, custom_css FROM scrapbook_data.styles")
 		if err != nil {
 			logMessage(2, err.Error())
@@ -183,6 +188,8 @@ func httpHandler(response http.ResponseWriter, request *http.Request) {
 				id, name, background_type, background_data, background_position, background_size, font_family, font_size, font_weight, font_color, margin, padding, text_align, border_width, border_style, border_color, custom_css,
 			})
 		}
+
+		styleRows.Close()
 
 		jsonBytes, err := json.Marshal(scrapbookSitemap{
 			pages,
@@ -222,7 +229,7 @@ func httpHandler(response http.ResponseWriter, request *http.Request) {
 		logMessage(1, err.Error())
 		fmt.Fprintf(response, "Error.")
 	}
-	logMessage(4, fmt.Sprintf("%s: %s", request.RemoteAddr, request.RequestURI))
+
 }
 
 func createEditorSession() (string, error) {
@@ -237,7 +244,7 @@ func createEditorSession() (string, error) {
 }
 
 func getNestedElements(parentType string, parentId string) []scrapbookElement {
-	elementRows, err := db.Query("SELECT element_id, element_name, style_id, pos_anchor, pos_x, pos_y, pos_z, width, height, is_link, link_url, content FROM scrapbook_data.elements WHERE parent_type = $1 AND parent_id = $2 ORDER BY sequence_number ASC", parentType, parentId)
+	elementRows, err := db.Query("SELECT element_id, element_name, style_id, pos_anchor, pos_x, pos_y, pos_z, width, height, is_link, link_url, text_content FROM scrapbook_data.elements WHERE parent_type = $1 AND parent_id = $2 ORDER BY sequence_number ASC", parentType, parentId)
 	if err != nil {
 		logMessage(2, err.Error())
 	}
@@ -259,7 +266,9 @@ func getNestedElements(parentType string, parentId string) []scrapbookElement {
 	)
 
 	for elementRows.Next() {
+
 		elementRows.Scan(&element_id, &element_name, &style_id, &pos_anchor, &pos_x, &pos_y, &pos_z, &width, &height, &is_link, &link_url, &content)
+		logMessage(5, content)
 		elements = append(elements, scrapbookElement{
 			element_id,
 			element_name,
@@ -277,5 +286,71 @@ func getNestedElements(parentType string, parentId string) []scrapbookElement {
 		})
 	}
 	return elements
+}
 
+func updateFromSitemap(sitemap scrapbookSitemap) error {
+	// Update styles
+
+	_, err := db.Exec("DELETE FROM scrapbook_data.styles")
+	if err != nil {
+		logMessage(2, err.Error())
+		return err
+	}
+	for _, style := range sitemap.Styles {
+		logMessage(5, fmt.Sprintf("Processing style %s: %s", style.ID, style.Name))
+		_, err := db.Exec("INSERT INTO scrapbook_data.styles(style_id, style_name, background_type, background_data, background_position, background_size, font_family, font_size, font_weight, font_color, margin, padding, text_align, border_width, border_style, border_color, custom_css) VALUES($1, $2, $3 ,$4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17)", style.ID, style.Name, style.BackgroundType, style.BackgroundData, style.BackgroundPosition, style.BackgroundSize, style.FontFamily, style.FontSize, style.FontWeight, style.FontColor, style.Margin, style.Padding, style.TextAlign, style.BorderWidth, style.BorderStyle, style.BorderColor, style.CustomCSS)
+		if err != nil {
+			logMessage(2, err.Error())
+			return err
+		}
+	}
+
+	// Update pages
+	_, err = db.Exec("DELETE FROM scrapbook_data.pages")
+	if err != nil {
+		logMessage(2, err.Error())
+		return err
+	}
+	_, err = db.Exec("DELETE FROM scrapbook_data.elements")
+	if err != nil {
+		logMessage(2, err.Error())
+		return err
+	}
+
+	for _, page := range sitemap.Pages {
+		logMessage(5, fmt.Sprintf("Processing page %s", page.Header.URI))
+		_, err = db.Exec("INSERT INTO scrapbook_data.pages(page_uri, page_title) VALUES($1, $2)", page.Header.URI, page.Header.Title)
+		if err != nil {
+			logMessage(2, err.Error())
+			return err
+		}
+		for i, element := range page.Elements {
+			updateFromElement(element, "page", page.Header.URI, i)
+		}
+	}
+
+	return nil
+}
+
+func updateFromElement(element scrapbookElement, parentType string, parentID string, sequenceNumber int) error {
+	logMessage(5, fmt.Sprintf("Processing element %s: %s", element.ID, element.Name))
+	logMessage(5, element.Content)
+	_, err := db.Exec("INSERT INTO scrapbook_data.elements(element_id, parent_type, parent_id, sequence_number, element_name, style_id, pos_anchor, pos_x, pos_y, pos_z, width, height, is_link, link_url, text_content) VALUES ($1, $2, $3 ,$4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)", element.ID, parentType, parentID, sequenceNumber, element.Name, element.StyleID, element.PosAnchor, element.PosX, element.PosY, element.PosZ, element.Width, element.Height, parseBoolToInt(element.IsLink), element.LinkURL, element.Content)
+	if err != nil {
+		logMessage(2, err.Error())
+		return err
+	}
+
+	for i, child := range element.Children {
+		updateFromElement(child, "element", element.ID, i)
+	}
+	return nil
+}
+
+func parseBoolToInt(value bool) int {
+	if value {
+		return 1
+	} else {
+		return 0
+	}
 }
