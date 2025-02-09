@@ -139,6 +139,10 @@
         </div>
         <div id="edit-frame" style="position: fixed; top: calc(100vh - 100px); left: 0px; height: 100px; width: 100rem; background-color: brown;">
             <button onclick="saveEdit()">Save</button>
+            <form action="/editapi/upload" method="POST" enctype="multipart/form-data">
+                <input type="file" name="upload">
+                <input type="submit">
+            </form>
         </div>
     </body>
     </html>

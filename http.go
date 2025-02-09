@@ -1,10 +1,14 @@
 package main
 
 import (
+	"bytes"
 	"database/sql"
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"image"
+	"image/jpeg"
+	"image/png"
 	"net/http"
 	"net/url"
 )
@@ -112,27 +116,11 @@ func httpHandler(response http.ResponseWriter, request *http.Request) {
 	if request.URL.Path == "/editapi/save" && request.Method == "POST" {
 		var sitemap scrapbookSitemap
 
-		sessionCookie, err := request.Cookie(EDIT_COOKIE)
-		if err != nil {
-			response.WriteHeader(400)
-			fmt.Fprintf(response, "Error.")
+		if !isSessionAuthenticated(response, request) {
 			return
 		}
 
-		var token string
-		err = db.QueryRow("SELECT session_id FROM scrapbook_data.editors WHERE session_id = $1 AND timestamp > now() - INTERVAL '1 DAY'", sessionCookie.Value).Scan(&token)
-		if err == sql.ErrNoRows {
-			response.WriteHeader(400)
-			fmt.Fprintf(response, "Error.")
-			return
-		} else if err != nil {
-			logMessage(2, err.Error())
-			response.WriteHeader(500)
-			fmt.Fprintf(response, "Error.")
-			return
-		}
-
-		err = json.NewDecoder(request.Body).Decode(&sitemap)
+		err := json.NewDecoder(request.Body).Decode(&sitemap)
 		if err != nil {
 			logMessage(2, err.Error())
 			response.WriteHeader(500)
@@ -141,6 +129,93 @@ func httpHandler(response http.ResponseWriter, request *http.Request) {
 			updateFromSitemap(sitemap)
 			fmt.Fprintf(response, "Ok.")
 		}
+		return
+	}
+
+	// Edit api upload
+	if request.URL.Path == "/editapi/upload" && request.Method == "POST" {
+		if !isSessionAuthenticated(response, request) {
+			return
+		}
+
+		err := request.ParseMultipartForm(6 << 20) //Max 6Mb
+		if err != nil {
+			response.WriteHeader(400)
+			fmt.Fprintf(response, "Error.")
+			return
+		}
+
+		file, handler, err := request.FormFile("upload")
+		if err != nil {
+			response.WriteHeader(400)
+			fmt.Fprintf(response, "Error.")
+			return
+		}
+		defer file.Close()
+
+		logMessage(5, fmt.Sprintf("User uploaded file %s: %d %s", handler.Filename, handler.Size, handler.Header["Content-Type"]))
+
+		if handler.Header["Content-Type"][0] != "image/png" && handler.Header["Content-Type"][0] != "image/jpeg" {
+			response.WriteHeader(400)
+			fmt.Fprintf(response, "Error.")
+			return
+		}
+
+		var imageFile image.Image
+
+		if handler.Header["Content-Type"][0] == "image/jpeg" {
+			imageFile, err = jpeg.Decode(file)
+		} else if handler.Header["Content-Type"][0] == "image/png" {
+			imageFile, err = png.Decode(file)
+		}
+		if err != nil {
+			response.WriteHeader(500)
+			fmt.Fprintf(response, "Error.")
+			return
+		}
+
+		var options = jpeg.Options{
+			Quality: 70,
+		}
+
+		imageBuffer := new(bytes.Buffer)
+		err = jpeg.Encode(imageBuffer, imageFile, &options)
+		if err != nil {
+			response.WriteHeader(500)
+			fmt.Fprintf(response, "Error.")
+			return
+		}
+
+		imageBytes := imageBuffer.Bytes()
+		mediaID, err := createMediaID()
+		if err != nil {
+			response.WriteHeader(500)
+			fmt.Fprintf(response, "Error.")
+			return
+		}
+		mediaVersionID, err := createMediaVersionID()
+		if err != nil {
+			response.WriteHeader(500)
+			fmt.Fprintf(response, "Error.")
+			return
+		}
+
+		_, err = db.Exec("INSERT INTO scrapbook_data.media(media_id, media_type, media_name) VALUES ($1, $2, $3)", mediaID, "image", mediaID)
+		if err != nil {
+			response.WriteHeader(500)
+			fmt.Fprintf(response, "Error.")
+			return
+		}
+
+		_, err = db.Exec("INSERT INTO scrapbook_data.media_versions(media_version_id, media_id, version_height, version_width, media_data) VALUES ($1, $2, $3, $4, $5)", mediaVersionID, mediaID, imageFile.Bounds().Max.X, imageFile.Bounds().Max.Y, imageBytes)
+		if err != nil {
+			response.WriteHeader(500)
+			fmt.Fprintf(response, "Error.")
+			return
+		}
+
+		response.WriteHeader(200)
+		fmt.Fprintf(response, "Ok.")
 		return
 	}
 
@@ -237,6 +312,28 @@ func createEditorSession() (string, error) {
 	err := db.QueryRow("SELECT session_id FROM scrapbook_data.editors WHERE session_id = $1", newToken).Scan()
 	if err == nil {
 		return createEditorSession()
+	} else if err == sql.ErrNoRows {
+		return newToken, nil
+	}
+	return "", err
+}
+
+func createMediaID() (string, error) {
+	newToken := generateRandomString(8)
+	err := db.QueryRow("SELECT media_id FROM scrapbook_data.media WHERE media_id = $1", newToken).Scan()
+	if err == nil {
+		return createMediaID()
+	} else if err == sql.ErrNoRows {
+		return newToken, nil
+	}
+	return "", err
+}
+
+func createMediaVersionID() (string, error) {
+	newToken := generateRandomString(8)
+	err := db.QueryRow("SELECT media_version_id FROM scrapbook_data.media_versions WHERE media_version_id = $1", newToken).Scan()
+	if err == nil {
+		return createMediaVersionID()
 	} else if err == sql.ErrNoRows {
 		return newToken, nil
 	}
