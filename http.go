@@ -18,6 +18,7 @@ import (
 type scrapbookSitemap struct {
 	Pages  []scrapbookPage
 	Styles []scrapbookStyle
+	Media  []scrapbookMedia
 }
 
 type scrapbookPage struct {
@@ -64,6 +65,19 @@ type scrapbookStyle struct {
 type scrapbookPageHeader struct {
 	Title string
 	URI   string
+}
+
+type scrapbookMedia struct {
+	MediaID       string
+	MediaType     string
+	MediaName     string
+	MediaVersions []scrapbookMediaVersion
+}
+
+type scrapbookMediaVersion struct {
+	MediaVersionID string
+	Width          int
+	Height         int
 }
 
 func httpHandler(response http.ResponseWriter, request *http.Request) {
@@ -183,7 +197,7 @@ func httpHandler(response http.ResponseWriter, request *http.Request) {
 			return
 		}
 
-		_, err = db.Exec("INSERT INTO scrapbook_data.media(media_id, media_type, media_name) VALUES ($1, $2, $3)", mediaID, "image", mediaID)
+		_, err = db.Exec("INSERT INTO scrapbook_data.media(media_id, media_type, media_name) VALUES ($1, $2, $3)", mediaID, "image", handler.Filename)
 		if err != nil {
 			response.WriteHeader(500)
 			fmt.Fprintf(response, "Error.")
@@ -234,6 +248,7 @@ func httpHandler(response http.ResponseWriter, request *http.Request) {
 		var (
 			pages  []scrapbookPage  = []scrapbookPage{}
 			styles []scrapbookStyle = []scrapbookStyle{}
+			media  []scrapbookMedia = []scrapbookMedia{}
 		)
 
 		pageRows, err := db.Query("SELECT page_title, page_uri FROM scrapbook_data.pages")
@@ -254,7 +269,6 @@ func httpHandler(response http.ResponseWriter, request *http.Request) {
 				getNestedElements("page", uri),
 			})
 		}
-
 		pageRows.Close()
 
 		styleRows, err := db.Query("SELECT style_id, style_name, background_type, background_data, background_position, background_size, font_family, font_size, font_weight, font_color, margin, padding, text_align, border_width, border_style, border_color, custom_css FROM scrapbook_data.styles")
@@ -273,12 +287,48 @@ func httpHandler(response http.ResponseWriter, request *http.Request) {
 				id, name, background_type, background_data, background_position, background_size, font_family, font_size, font_weight, font_color, margin, padding, text_align, border_width, border_style, border_color, custom_css,
 			})
 		}
-
 		styleRows.Close()
+
+		mediaRows, err := db.Query("SELECT media_id, media_type, media_name FROM scrapbook_data.media")
+		if err != nil {
+			logMessage(2, err.Error())
+			return
+		}
+		for mediaRows.Next() {
+			var mediaID, mediaType, mediaName string
+			mediaRows.Scan(&mediaID, &mediaType, &mediaName)
+			mediaVersionRows, err := db.Query("SELECT media_version_id, version_width, version_height FROM scrapbook_data.media_versions")
+			if err != nil {
+				logMessage(2, err.Error())
+				return
+			}
+			var mediaVersions = []scrapbookMediaVersion{}
+			for mediaVersionRows.Next() {
+				var (
+					mediaVersionID string
+					versionWidth   int
+					versionHeight  int
+				)
+				mediaVersionRows.Scan(&mediaVersionID, &versionWidth, &versionHeight)
+				mediaVersions = append(mediaVersions, scrapbookMediaVersion{
+					mediaVersionID,
+					versionWidth,
+					versionHeight,
+				})
+			}
+			media = append(media, scrapbookMedia{
+				mediaID,
+				mediaType,
+				mediaName,
+				mediaVersions,
+			})
+		}
+		mediaRows.Close()
 
 		jsonBytes, err := json.Marshal(scrapbookSitemap{
 			pages,
 			styles,
+			media,
 		})
 
 		if err != nil {
