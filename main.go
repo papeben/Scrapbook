@@ -15,18 +15,19 @@ import (
 )
 
 var (
-	logVerbosity  = envWithDefaultInt("LOG_LEVEL", 5)
-	POSTGRES_HOST = envWithDefault("POSTGRES_HOST", "127.0.0.1")
-	POSTGRES_USER = envWithDefault("POSTGRES_USER", "postgres")
-	POSTGRES_PASS = envWithDefault("POSTGRES_PASS", "postgres")
-	POSTGRES_DB   = envWithDefault("POSTGRES_DB", "scrapbook")
-	POSTGRES_SSL  = envWithDefault("POSTGRES_SSL", "disable")
-	EDIT_PASSWORD = envWithDefault("EDIT_PASSWORD", "changeme")
-	EDIT_COOKIE   = envWithDefault("EDIT_COOKIE", "scrapbook-edit")
-	HTTP_PORT     = envWithDefault("HTTP_PORT", "8080")
-	sevMap        = [6]string{"FATAL", "CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"}
-	db            *sql.DB
-	formTemplate  *template.Template
+	logVerbosity         = envWithDefaultInt("LOG_LEVEL", 5)
+	POSTGRES_HOST        = envWithDefault("POSTGRES_HOST", "127.0.0.1")
+	POSTGRES_USER        = envWithDefault("POSTGRES_USER", "postgres")
+	POSTGRES_PASS        = envWithDefault("POSTGRES_PASS", "postgres")
+	POSTGRES_DB          = envWithDefault("POSTGRES_DB", "scrapbook")
+	POSTGRES_SSL         = envWithDefault("POSTGRES_SSL", "disable")
+	EDIT_PASSWORD        = envWithDefault("EDIT_PASSWORD", "changeme")
+	EDIT_COOKIE          = envWithDefault("EDIT_COOKIE", "scrapbook-edit")
+	HTTP_PORT            = envWithDefault("HTTP_PORT", "8080")
+	sevMap               = [6]string{"FATAL", "CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"}
+	imageResolutionSteps = [6]int{1080, 720, 576, 480, 360, 144}
+	db                   *sql.DB
+	formTemplate         *template.Template
 )
 
 func main() {

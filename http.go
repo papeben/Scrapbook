@@ -11,6 +11,8 @@ import (
 	"image/png"
 	"net/http"
 	"net/url"
+
+	"github.com/nfnt/resize"
 )
 
 type scrapbookSitemap struct {
@@ -174,26 +176,7 @@ func httpHandler(response http.ResponseWriter, request *http.Request) {
 			return
 		}
 
-		var options = jpeg.Options{
-			Quality: 70,
-		}
-
-		imageBuffer := new(bytes.Buffer)
-		err = jpeg.Encode(imageBuffer, imageFile, &options)
-		if err != nil {
-			response.WriteHeader(500)
-			fmt.Fprintf(response, "Error.")
-			return
-		}
-
-		imageBytes := imageBuffer.Bytes()
 		mediaID, err := createMediaID()
-		if err != nil {
-			response.WriteHeader(500)
-			fmt.Fprintf(response, "Error.")
-			return
-		}
-		mediaVersionID, err := createMediaVersionID()
 		if err != nil {
 			response.WriteHeader(500)
 			fmt.Fprintf(response, "Error.")
@@ -207,11 +190,38 @@ func httpHandler(response http.ResponseWriter, request *http.Request) {
 			return
 		}
 
-		_, err = db.Exec("INSERT INTO scrapbook_data.media_versions(media_version_id, media_id, version_height, version_width, media_data) VALUES ($1, $2, $3, $4, $5)", mediaVersionID, mediaID, imageFile.Bounds().Max.X, imageFile.Bounds().Max.Y, imageBytes)
-		if err != nil {
-			response.WriteHeader(500)
-			fmt.Fprintf(response, "Error.")
-			return
+		// Generate optimised media
+		for _, resolution := range imageResolutionSteps {
+			if resolution <= imageFile.Bounds().Max.Y {
+				logMessage(5, fmt.Sprintf("Encoding %vp image variant", resolution))
+				mediaVersionID, err := createMediaVersionID()
+				if err != nil {
+					response.WriteHeader(500)
+					fmt.Fprintf(response, "Error.")
+					return
+				}
+
+				var options = jpeg.Options{
+					Quality: 70,
+				}
+
+				resizedImage := resize.Resize(0, uint(resolution), imageFile, resize.Lanczos3)
+				imageBuffer := new(bytes.Buffer)
+				err = jpeg.Encode(imageBuffer, resizedImage, &options)
+				if err != nil {
+					response.WriteHeader(500)
+					fmt.Fprintf(response, "Error.")
+					return
+				}
+				imageBytes := imageBuffer.Bytes()
+
+				_, err = db.Exec("INSERT INTO scrapbook_data.media_versions(media_version_id, media_id, version_width, version_height, media_data) VALUES ($1, $2, $3, $4, $5)", mediaVersionID, mediaID, resizedImage.Bounds().Max.X, resizedImage.Bounds().Max.Y, imageBytes)
+				if err != nil {
+					response.WriteHeader(500)
+					fmt.Fprintf(response, "Error.")
+					return
+				}
+			}
 		}
 
 		response.WriteHeader(200)

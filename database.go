@@ -61,7 +61,7 @@ func dbConnect(n int) error {
 		return err
 	}
 
-	_, err = db.Exec("CREATE TABLE IF NOT EXISTS scrapbook_data.media_versions (media_version_id VARCHAR(8) NOT NULL PRIMARY KEY, media_id VARCHAR(8) NOT NULL, version_height INT NOT NULL, version_width INT NOT NULL, media_data BYTEA)")
+	_, err = db.Exec("CREATE TABLE IF NOT EXISTS scrapbook_data.media_versions (media_version_id VARCHAR(8) NOT NULL PRIMARY KEY, media_id VARCHAR(8) NOT NULL, version_width INT NOT NULL, version_height INT NOT NULL, media_data BYTEA)")
 	if err != nil {
 		return err
 	}
