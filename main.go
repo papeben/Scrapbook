@@ -15,20 +15,26 @@ import (
 )
 
 var (
-	logVerbosity         = envWithDefaultInt("LOG_LEVEL", 5)
-	POSTGRES_HOST        = envWithDefault("POSTGRES_HOST", "127.0.0.1")
-	POSTGRES_USER        = envWithDefault("POSTGRES_USER", "postgres")
-	POSTGRES_PASS        = envWithDefault("POSTGRES_PASS", "postgres")
-	POSTGRES_DB          = envWithDefault("POSTGRES_DB", "scrapbook")
-	POSTGRES_SSL         = envWithDefault("POSTGRES_SSL", "disable")
-	EDIT_PASSWORD        = envWithDefault("EDIT_PASSWORD", "changeme")
-	EDIT_COOKIE          = envWithDefault("EDIT_COOKIE", "scrapbook-edit")
-	HTTP_PORT            = envWithDefault("HTTP_PORT", "8080")
-	MEDIA_DIRECTORY      = envWithDefault("MEDIA_DIR", "/media")
-	sevMap               = [6]string{"FATAL", "CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"}
-	imageResolutionSteps = [6]int{1080, 720, 576, 480, 360, 144}
-	db                   *sql.DB
-	formTemplate         *template.Template
+	logVerbosity          = envWithDefaultInt("LOG_LEVEL", 5)
+	POSTGRES_HOST         = envWithDefault("POSTGRES_HOST", "127.0.0.1")
+	POSTGRES_USER         = envWithDefault("POSTGRES_USER", "postgres")
+	POSTGRES_PASS         = envWithDefault("POSTGRES_PASS", "postgres")
+	POSTGRES_DB           = envWithDefault("POSTGRES_DB", "scrapbook")
+	POSTGRES_SSL          = envWithDefault("POSTGRES_SSL", "disable")
+	EDIT_PASSWORD         = envWithDefault("EDIT_PASSWORD", "changeme")
+	EDIT_COOKIE           = envWithDefault("EDIT_COOKIE", "scrapbook-edit")
+	HTTP_PORT             = envWithDefault("HTTP_PORT", "8080")
+	MEDIA_DIRECTORY       = envWithDefault("MEDIA_WEB_DIR", "/media")
+	TEMP_DIRECTORY        = envWithDefault("TEMP_DIR", "/tmp")
+	sevMap                = [6]string{"FATAL", "CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"}
+	imageResolutionSteps  = [10]int{144, 240, 360, 480, 576, 720, 960, 1080, 1440, 2160}
+	videoBitrateSteps     = [10]float32{0.2, 0.4, 0.6, 0.8, 1.2, 2, 3, 4, 8, 14}
+	videoFFMPEGPreset     = "slow"
+	videoFFMPEGCodec      = "libvpx"
+	videoFFMPEGAudioCodec = "libvorbis"
+	videoFFMPEGContainer  = "webm"
+	db                    *sql.DB
+	formTemplate          *template.Template
 )
 
 func main() {
@@ -108,4 +114,11 @@ func loadTemplates() {
 		logMessage(0, fmt.Sprintf("Unable to load HTML template from scrapbook.html: %s", err.Error()))
 		os.Exit(1)
 	}
+}
+
+func errWithWeb(err error, response http.ResponseWriter, statusMessage string) {
+	logMessage(1, err.Error())
+	logMessage(5, statusMessage)
+	response.WriteHeader(500)
+	fmt.Fprintf(response, "An internal error occurred.")
 }

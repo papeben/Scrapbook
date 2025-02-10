@@ -9,8 +9,14 @@ import (
 	"image"
 	"image/jpeg"
 	"image/png"
+	"io"
+	"mime/multipart"
 	"net/http"
 	"net/url"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/nfnt/resize"
@@ -76,9 +82,9 @@ type scrapbookMedia struct {
 }
 
 type scrapbookMediaVersion struct {
-	MediaVersionID string
-	Width          int
-	Height         int
+	VID    string
+	Width  int
+	Height int
 }
 
 func httpHandler(response http.ResponseWriter, request *http.Request) {
@@ -151,96 +157,7 @@ func httpHandler(response http.ResponseWriter, request *http.Request) {
 
 	// Edit api upload
 	if request.URL.Path == "/editapi/upload" && request.Method == "POST" {
-		if !isSessionAuthenticated(response, request) {
-			return
-		}
-
-		err := request.ParseMultipartForm(6 << 20) //Max 6Mb
-		if err != nil {
-			response.WriteHeader(400)
-			fmt.Fprintf(response, "Error.")
-			return
-		}
-
-		file, handler, err := request.FormFile("upload")
-		if err != nil {
-			response.WriteHeader(400)
-			fmt.Fprintf(response, "Error.")
-			return
-		}
-		defer file.Close()
-
-		logMessage(5, fmt.Sprintf("User uploaded file %s: %d %s", handler.Filename, handler.Size, handler.Header["Content-Type"]))
-
-		if handler.Header["Content-Type"][0] != "image/png" && handler.Header["Content-Type"][0] != "image/jpeg" {
-			response.WriteHeader(400)
-			fmt.Fprintf(response, "Error.")
-			return
-		}
-
-		var imageFile image.Image
-
-		if handler.Header["Content-Type"][0] == "image/jpeg" {
-			imageFile, err = jpeg.Decode(file)
-		} else if handler.Header["Content-Type"][0] == "image/png" {
-			imageFile, err = png.Decode(file)
-		}
-		if err != nil {
-			response.WriteHeader(500)
-			fmt.Fprintf(response, "Error.")
-			return
-		}
-
-		mediaID, err := createMediaID()
-		if err != nil {
-			response.WriteHeader(500)
-			fmt.Fprintf(response, "Error.")
-			return
-		}
-
-		_, err = db.Exec("INSERT INTO scrapbook_data.media(media_id, media_type, media_name) VALUES ($1, $2, $3)", mediaID, "image", handler.Filename)
-		if err != nil {
-			response.WriteHeader(500)
-			fmt.Fprintf(response, "Error.")
-			return
-		}
-
-		// Generate optimised media
-		for _, resolution := range imageResolutionSteps {
-			if resolution <= imageFile.Bounds().Max.Y {
-				logMessage(5, fmt.Sprintf("Encoding %vp image variant", resolution))
-				mediaVersionID, err := createMediaVersionID()
-				if err != nil {
-					response.WriteHeader(500)
-					fmt.Fprintf(response, "Error.")
-					return
-				}
-
-				var options = jpeg.Options{
-					Quality: 70,
-				}
-
-				resizedImage := resize.Resize(0, uint(resolution), imageFile, resize.Lanczos3)
-				imageBuffer := new(bytes.Buffer)
-				err = jpeg.Encode(imageBuffer, resizedImage, &options)
-				if err != nil {
-					response.WriteHeader(500)
-					fmt.Fprintf(response, "Error.")
-					return
-				}
-				imageBytes := imageBuffer.Bytes()
-
-				_, err = db.Exec("INSERT INTO scrapbook_data.media_versions(media_version_id, media_id, version_width, version_height, media_data) VALUES ($1, $2, $3, $4, $5)", mediaVersionID, mediaID, resizedImage.Bounds().Max.X, resizedImage.Bounds().Max.Y, imageBytes)
-				if err != nil {
-					response.WriteHeader(500)
-					fmt.Fprintf(response, "Error.")
-					return
-				}
-			}
-		}
-
-		response.WriteHeader(200)
-		fmt.Fprintf(response, "Ok.")
+		handleMediaUpload(response, request)
 		return
 	}
 
@@ -266,6 +183,7 @@ func httpHandler(response http.ResponseWriter, request *http.Request) {
 			fmt.Fprint(response, `Error.`)
 			return
 		}
+		return
 	}
 
 	// Serve sitemap
@@ -534,5 +452,220 @@ func parseBoolToInt(value bool) int {
 		return 1
 	} else {
 		return 0
+	}
+}
+
+func handleMediaUpload(response http.ResponseWriter, request *http.Request) {
+	if !isSessionAuthenticated(response, request) {
+		return
+	}
+
+	err := request.ParseMultipartForm(6 << 20) //Max 6Mb
+	if err != nil {
+		response.WriteHeader(400)
+		fmt.Fprintf(response, "Error.")
+		return
+	}
+
+	file, handler, err := request.FormFile("upload")
+	if err != nil {
+		response.WriteHeader(400)
+		fmt.Fprintf(response, "Error.")
+		return
+	}
+	defer file.Close()
+
+	logMessage(5, fmt.Sprintf("User uploaded file %s: %d %s", handler.Filename, handler.Size, handler.Header["Content-Type"]))
+
+	if handler.Header["Content-Type"][0] == "image/png" || handler.Header["Content-Type"][0] == "image/jpeg" {
+		handleImageUpload(response, request, handler, file)
+	} else if handler.Header["Content-Type"][0] == "video/mp4" || handler.Header["Content-Type"][0] == "video/x-matroska" {
+		handleVideoUpload(response, request, handler, file)
+	} else {
+		response.WriteHeader(400)
+		fmt.Fprintf(response, "Error.")
+	}
+}
+
+func handleImageUpload(response http.ResponseWriter, request *http.Request, handler *multipart.FileHeader, file multipart.File) {
+
+	var imageFile image.Image
+	var err error
+
+	if handler.Header["Content-Type"][0] == "image/jpeg" {
+		imageFile, err = jpeg.Decode(file)
+	} else if handler.Header["Content-Type"][0] == "image/png" {
+		imageFile, err = png.Decode(file)
+	}
+	if err != nil {
+		response.WriteHeader(500)
+		fmt.Fprintf(response, "Error.")
+		return
+	}
+
+	mediaID, err := createMediaID()
+	if err != nil {
+		response.WriteHeader(500)
+		fmt.Fprintf(response, "Error.")
+		return
+	}
+
+	_, err = db.Exec("INSERT INTO scrapbook_data.media(media_id, media_type, media_name) VALUES ($1, $2, $3)", mediaID, "image", handler.Filename)
+	if err != nil {
+		response.WriteHeader(500)
+		fmt.Fprintf(response, "Error.")
+		return
+	}
+
+	// Generate optimised media
+	for _, resolution := range imageResolutionSteps {
+		if resolution <= imageFile.Bounds().Max.Y {
+			logMessage(5, fmt.Sprintf("Encoding %vp image variant", resolution))
+			mediaVersionID, err := createMediaVersionID()
+			if err != nil {
+				response.WriteHeader(500)
+				fmt.Fprintf(response, "Error.")
+				return
+			}
+
+			var options = jpeg.Options{
+				Quality: 70,
+			}
+
+			resizedImage := resize.Resize(0, uint(resolution), imageFile, resize.Lanczos3)
+			imageBuffer := new(bytes.Buffer)
+			err = jpeg.Encode(imageBuffer, resizedImage, &options)
+			if err != nil {
+				response.WriteHeader(500)
+				fmt.Fprintf(response, "Error.")
+				return
+			}
+			imageBytes := imageBuffer.Bytes()
+
+			_, err = db.Exec("INSERT INTO scrapbook_data.media_versions(media_version_id, media_id, version_width, version_height, media_data) VALUES ($1, $2, $3, $4, $5)", mediaVersionID, mediaID, resizedImage.Bounds().Max.X, resizedImage.Bounds().Max.Y, imageBytes)
+			if err != nil {
+				response.WriteHeader(500)
+				fmt.Fprintf(response, "Error.")
+				return
+			}
+		}
+	}
+
+	response.WriteHeader(200)
+	fmt.Fprintf(response, "Ok.")
+}
+
+func handleVideoUpload(response http.ResponseWriter, request *http.Request, handler *multipart.FileHeader, file multipart.File) {
+	mediaID, err := createMediaID()
+	if err != nil {
+		response.WriteHeader(500)
+		fmt.Fprintf(response, "Error.")
+		return
+	}
+	tempFilePath := filepath.Join(TEMP_DIRECTORY, mediaID)
+
+	tempFile, err := os.Create(tempFilePath)
+	if err != nil {
+		response.WriteHeader(500)
+		fmt.Fprintf(response, "Error.10")
+		return
+	}
+
+	_, err = io.Copy(tempFile, file)
+	if err != nil {
+		response.WriteHeader(500)
+		fmt.Fprintf(response, "Error.9")
+		return
+	}
+	tempFile.Close()
+
+	output, err := exec.Command("ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of", "csv=s=x:p=0", tempFilePath).CombinedOutput()
+	if err != nil {
+		errWithWeb(err, response, string(output))
+		return
+	}
+
+	_, err = db.Exec("INSERT INTO scrapbook_data.media(media_id, media_type, media_name) VALUES ($1, $2, $3)", mediaID, "video", handler.Filename)
+	if err != nil {
+		response.WriteHeader(500)
+		fmt.Fprintf(response, "Error.7")
+		return
+	}
+
+	go renderOptimisedVideo(mediaID)
+
+	response.WriteHeader(200)
+	fmt.Fprintf(response, "Ok.")
+
+}
+
+func renderOptimisedVideo(mediaID string) {
+	tempFilePath := filepath.Join(TEMP_DIRECTORY, mediaID)
+	tempFilePathRender := filepath.Join(TEMP_DIRECTORY, fmt.Sprintf("%srender.%s", mediaID, videoFFMPEGContainer))
+
+	output, err := exec.Command("ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of", "csv=s=x:p=0", tempFilePath).CombinedOutput()
+	if err != nil {
+		return
+	}
+	mediaHeight, err := strconv.Atoi(strings.Split(strings.TrimSpace(string(output)), "x")[1])
+	if err != nil {
+		return
+	}
+
+	// Generate optimised media
+	for i, resolution := range imageResolutionSteps {
+		if resolution <= mediaHeight {
+			logMessage(5, fmt.Sprintf("Encoding %vp video variant", resolution))
+			mediaVersionID, err := createMediaVersionID()
+			if err != nil {
+				return
+			}
+
+			output, err = exec.Command("ffmpeg", "-y", "-i", tempFilePath, "-c:v", videoFFMPEGCodec, "-b:v", fmt.Sprintf("%vM", videoBitrateSteps[i]), "-vf", fmt.Sprintf("scale=-2:%v", resolution), "-preset", videoFFMPEGPreset, "-c:a", videoFFMPEGAudioCodec, "-movflags", "+faststart", tempFilePathRender).CombinedOutput()
+			logMessage(5, string(output))
+			if err != nil {
+				return
+			}
+
+			renderFile, err := os.Open(tempFilePathRender)
+			if err != nil {
+				return
+			}
+			videoBytes, err := io.ReadAll(renderFile)
+			if err != nil {
+				return
+			}
+			renderFile.Close()
+
+			output, err := exec.Command("ffprobe", "-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of", "csv=s=x:p=0", tempFilePathRender).CombinedOutput()
+			if err != nil {
+				return
+			}
+
+			newMediaHeight, err := strconv.Atoi(strings.Split(strings.TrimSpace(string(output)), "x")[1])
+			if err != nil {
+				return
+			}
+
+			newMediaWidth, err := strconv.Atoi(strings.Split(string(output), "x")[0])
+			if err != nil {
+				return
+			}
+
+			_, err = db.Exec("INSERT INTO scrapbook_data.media_versions(media_version_id, media_id, version_width, version_height, media_data) VALUES ($1, $2, $3, $4, $5)", mediaVersionID, mediaID, newMediaWidth, newMediaHeight, videoBytes)
+			if err != nil {
+				return
+			}
+
+			err = os.Remove(tempFilePathRender)
+			if err != nil {
+				return
+			}
+		}
+	}
+
+	err = os.Remove(tempFilePath)
+	if err != nil {
+		return
 	}
 }
