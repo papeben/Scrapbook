@@ -343,6 +343,17 @@ func createMediaVersionID() (string, error) {
 	return "", err
 }
 
+func createFontID() (string, error) {
+	newToken := generateRandomString(8)
+	err := db.QueryRow("SELECT font_id FROM scrapbook_data.fonts WHERE font_id = $1", newToken).Scan()
+	if err == nil {
+		return createFontID()
+	} else if err == sql.ErrNoRows {
+		return newToken, nil
+	}
+	return "", err
+}
+
 func getNestedElements(parentType string, parentId string) []scrapbookElement {
 	elementRows, err := db.Query("SELECT element_id, element_name, style_id, pos_anchor, pos_x, pos_y, pos_z, width, height, is_link, link_url, content FROM scrapbook_data.elements WHERE parent_type = $1 AND parent_id = $2 ORDER BY sequence_number ASC", parentType, parentId)
 	if err != nil {
@@ -481,6 +492,8 @@ func handleMediaUpload(response http.ResponseWriter, request *http.Request) {
 		handleImageUpload(response, handler, file)
 	} else if handler.Header["Content-Type"][0] == "video/mp4" || handler.Header["Content-Type"][0] == "video/x-matroska" {
 		handleVideoUpload(response, handler, file)
+	} else if handler.Header["Content-Type"][0] == "font/ttf" {
+		handleFontUpload(response, handler, file)
 	} else {
 		response.WriteHeader(400)
 		fmt.Fprintf(response, "Error.")
@@ -668,4 +681,28 @@ func renderOptimisedVideo(mediaID string) {
 	if err != nil {
 		return
 	}
+}
+
+func handleFontUpload(response http.ResponseWriter, handler *multipart.FileHeader, file multipart.File) {
+	fontID, err := createFontID()
+	if err != nil {
+		errWithWeb(err, response, "Error creating font ID")
+		return
+	}
+
+	var fontBytes []byte
+	_, err = file.Read(fontBytes)
+	if err != nil {
+		errWithWeb(err, response, "Error reading font file.")
+		return
+	}
+
+	_, err = db.Exec("INSERT INTO scrapbook_data.fonts(font_id, font_name, font_bytes) VALUES ($1, $2, $3)", fontID, handler.Filename, fontBytes)
+	if err != nil {
+		errWithWeb(err, response, "Error adding font db record.")
+		return
+	}
+
+	response.WriteHeader(200)
+	fmt.Fprintf(response, "Ok.")
 }

@@ -71,6 +71,11 @@ func dbConnect(n int) error {
 		return err
 	}
 
+	_, err = db.Exec("CREATE TABLE IF NOT EXISTS scrapbook_data.fonts (font_id VARCHAR(8) NOT NULL PRIMARY KEY, font_name TEXT NULL, font_bytes BYTEA NOT NULL)")
+	if err != nil {
+		return err
+	}
+
 	// Insert initial data
 	_, err = db.Exec("INSERT INTO scrapbook_data.configuration(item, value) VALUES('version', '1')")
 	if err != nil {
