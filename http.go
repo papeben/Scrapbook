@@ -26,6 +26,7 @@ type scrapbookSitemap struct {
 	Pages  []scrapbookPage
 	Styles []scrapbookStyle
 	Media  []scrapbookMedia
+	Fonts  []scrapbookFont
 }
 
 type scrapbookPage struct {
@@ -85,6 +86,11 @@ type scrapbookMediaVersion struct {
 	VID    string
 	Width  int
 	Height int
+}
+
+type scrapbookFont struct {
+	FontID   string
+	FontName string
 }
 
 func httpHandler(response http.ResponseWriter, request *http.Request) {
@@ -219,6 +225,7 @@ func httpHandler(response http.ResponseWriter, request *http.Request) {
 			pages  []scrapbookPage  = []scrapbookPage{}
 			styles []scrapbookStyle = []scrapbookStyle{}
 			media  []scrapbookMedia = []scrapbookMedia{}
+			fonts  []scrapbookFont  = []scrapbookFont{}
 		)
 
 		pageRows, err := db.Query("SELECT page_title, page_uri FROM scrapbook_data.pages")
@@ -295,10 +302,27 @@ func httpHandler(response http.ResponseWriter, request *http.Request) {
 		}
 		mediaRows.Close()
 
+		fontRows, err := db.Query("SELECT font_id, font_name FROM scrapbook_data.fonts")
+		if err != nil {
+			logMessage(2, err.Error())
+			return
+		}
+		for fontRows.Next() {
+			var fontID, fontName string
+			fontRows.Scan(&fontID, &fontName)
+
+			fonts = append(fonts, scrapbookFont{
+				fontID,
+				fontName,
+			})
+		}
+		mediaRows.Close()
+
 		jsonBytes, err := json.Marshal(scrapbookSitemap{
 			pages,
 			styles,
 			media,
+			fonts,
 		})
 
 		if err != nil {
