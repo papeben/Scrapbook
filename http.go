@@ -344,7 +344,7 @@ func createMediaVersionID() (string, error) {
 }
 
 func getNestedElements(parentType string, parentId string) []scrapbookElement {
-	elementRows, err := db.Query("SELECT element_id, element_name, style_id, pos_anchor, pos_x, pos_y, pos_z, width, height, is_link, link_url, text_content FROM scrapbook_data.elements WHERE parent_type = $1 AND parent_id = $2 ORDER BY sequence_number ASC", parentType, parentId)
+	elementRows, err := db.Query("SELECT element_id, element_name, style_id, pos_anchor, pos_x, pos_y, pos_z, width, height, is_link, link_url, content FROM scrapbook_data.elements WHERE parent_type = $1 AND parent_id = $2 ORDER BY sequence_number ASC", parentType, parentId)
 	if err != nil {
 		logMessage(2, err.Error())
 	}
@@ -435,7 +435,7 @@ func updateFromSitemap(sitemap scrapbookSitemap) error {
 func updateFromElement(element scrapbookElement, parentType string, parentID string, sequenceNumber int) error {
 	logMessage(5, fmt.Sprintf("Processing element %s: %s", element.ID, element.Name))
 	logMessage(5, element.Content)
-	_, err := db.Exec("INSERT INTO scrapbook_data.elements(element_id, parent_type, parent_id, sequence_number, element_name, style_id, pos_anchor, pos_x, pos_y, pos_z, width, height, is_link, link_url, text_content) VALUES ($1, $2, $3 ,$4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)", element.ID, parentType, parentID, sequenceNumber, element.Name, element.StyleID, element.PosAnchor, element.PosX, element.PosY, element.PosZ, element.Width, element.Height, parseBoolToInt(element.IsLink), element.LinkURL, element.Content)
+	_, err := db.Exec("INSERT INTO scrapbook_data.elements(element_id, parent_type, parent_id, sequence_number, element_name, style_id, pos_anchor, pos_x, pos_y, pos_z, width, height, is_link, link_url, content) VALUES ($1, $2, $3 ,$4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)", element.ID, parentType, parentID, sequenceNumber, element.Name, element.StyleID, element.PosAnchor, element.PosX, element.PosY, element.PosZ, element.Width, element.Height, parseBoolToInt(element.IsLink), element.LinkURL, element.Content)
 	if err != nil {
 		logMessage(2, err.Error())
 		return err
@@ -478,16 +478,16 @@ func handleMediaUpload(response http.ResponseWriter, request *http.Request) {
 	logMessage(5, fmt.Sprintf("User uploaded file %s: %d %s", handler.Filename, handler.Size, handler.Header["Content-Type"]))
 
 	if handler.Header["Content-Type"][0] == "image/png" || handler.Header["Content-Type"][0] == "image/jpeg" {
-		handleImageUpload(response, request, handler, file)
+		handleImageUpload(response, handler, file)
 	} else if handler.Header["Content-Type"][0] == "video/mp4" || handler.Header["Content-Type"][0] == "video/x-matroska" {
-		handleVideoUpload(response, request, handler, file)
+		handleVideoUpload(response, handler, file)
 	} else {
 		response.WriteHeader(400)
 		fmt.Fprintf(response, "Error.")
 	}
 }
 
-func handleImageUpload(response http.ResponseWriter, request *http.Request, handler *multipart.FileHeader, file multipart.File) {
+func handleImageUpload(response http.ResponseWriter, handler *multipart.FileHeader, file multipart.File) {
 
 	var imageFile image.Image
 	var err error
@@ -555,7 +555,7 @@ func handleImageUpload(response http.ResponseWriter, request *http.Request, hand
 	fmt.Fprintf(response, "Ok.")
 }
 
-func handleVideoUpload(response http.ResponseWriter, request *http.Request, handler *multipart.FileHeader, file multipart.File) {
+func handleVideoUpload(response http.ResponseWriter, handler *multipart.FileHeader, file multipart.File) {
 	mediaID, err := createMediaID()
 	if err != nil {
 		response.WriteHeader(500)
