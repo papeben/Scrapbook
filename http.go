@@ -35,19 +35,20 @@ type scrapbookPage struct {
 }
 
 type scrapbookElement struct {
-	ID        string
-	Name      string
-	StyleID   string
-	PosAnchor string
-	PosX      float32
-	PosY      float32
-	PosZ      int
-	Width     float32
-	Height    float32
-	IsLink    bool
-	LinkURL   string
-	Content   string
-	Children  []scrapbookElement
+	ID          string
+	Name        string
+	StyleID     string
+	PosAnchor   string
+	PosX        float32
+	PosY        float32
+	PosZ        int
+	Width       float32
+	Height      float32
+	IsLink      bool
+	LinkURL     string
+	ContentType string
+	Content     string
+	Children    []scrapbookElement
 }
 
 type scrapbookStyle struct {
@@ -71,8 +72,11 @@ type scrapbookStyle struct {
 }
 
 type scrapbookPageHeader struct {
-	Title string
-	URI   string
+	Title           string
+	URI             string
+	Description     string
+	HasPreviewImage bool
+	PreviewImage    string
 }
 
 type scrapbookMedia struct {
@@ -111,22 +115,35 @@ func httpHandler(response http.ResponseWriter, request *http.Request) {
 		handleServeSitemap(response, request)
 	} else { // Serve page (or 404 if no page)
 		var (
-			title string
-			page  scrapbookPageHeader
+			title           string
+			description     string
+			hasPreviewImage bool = false
+			previewImage    string
+			page            scrapbookPageHeader
 		)
-		err := db.QueryRow("SELECT page_title FROM scrapbook_data.pages WHERE page_uri = $1", request.URL.Path).Scan(&title) // Get page info from database
+		err := db.QueryRow("SELECT page_title, page_description, preview_image FROM scrapbook_data.pages WHERE page_uri = $1", request.URL.Path).Scan(&title, &description, &previewImage) // Get page info from database
 		if err == sql.ErrNoRows {
 			page = scrapbookPageHeader{
 				"Page Not Found",
 				request.URL.Path,
+				"This page does not exist.",
+				false,
+				"",
 			}
 			response.WriteHeader(404)
 		} else if err != sql.ErrNoRows && err != nil {
 			logMessage(2, err.Error())
 		} else {
+			if previewImage != "" {
+				hasPreviewImage = true
+			}
+
 			page = scrapbookPageHeader{
 				title,
 				request.URL.Path,
+				description,
+				hasPreviewImage,
+				previewImage,
 			}
 		}
 
@@ -184,7 +201,7 @@ func createFontID() (string, error) {
 }
 
 func getNestedElements(parentType string, parentId string) []scrapbookElement {
-	elementRows, err := db.Query("SELECT element_id, element_name, style_id, pos_anchor, pos_x, pos_y, pos_z, width, height, is_link, link_url, content FROM scrapbook_data.elements WHERE parent_type = $1 AND parent_id = $2 ORDER BY sequence_number ASC", parentType, parentId)
+	elementRows, err := db.Query("SELECT element_id, element_name, style_id, pos_anchor, pos_x, pos_y, pos_z, width, height, is_link, link_url, content_type, content FROM scrapbook_data.elements WHERE parent_type = $1 AND parent_id = $2 ORDER BY sequence_number ASC", parentType, parentId)
 	if err != nil {
 		logMessage(2, err.Error())
 	}
@@ -202,12 +219,12 @@ func getNestedElements(parentType string, parentId string) []scrapbookElement {
 		height       float32
 		is_link      bool
 		link_url     string
+		content_type string
 		content      string
 	)
 
 	for elementRows.Next() {
-		elementRows.Scan(&element_id, &element_name, &style_id, &pos_anchor, &pos_x, &pos_y, &pos_z, &width, &height, &is_link, &link_url, &content)
-		logMessage(5, content)
+		elementRows.Scan(&element_id, &element_name, &style_id, &pos_anchor, &pos_x, &pos_y, &pos_z, &width, &height, &is_link, &link_url, &content_type, &content)
 		elements = append(elements, scrapbookElement{
 			element_id,
 			element_name,
@@ -220,6 +237,7 @@ func getNestedElements(parentType string, parentId string) []scrapbookElement {
 			height,
 			is_link,
 			link_url,
+			content_type,
 			content,
 			getNestedElements("element", element_id),
 		})
@@ -256,7 +274,7 @@ func updateFromSitemap(sitemap scrapbookSitemap) error {
 
 	for _, page := range sitemap.Pages {
 		logMessage(5, fmt.Sprintf("Processing page %s", page.Header.URI))
-		_, err = db.Exec("INSERT INTO scrapbook_data.pages(page_uri, page_title) VALUES($1, $2)", page.Header.URI, page.Header.Title)
+		_, err = db.Exec("INSERT INTO scrapbook_data.pages(page_uri, page_title, page_description, preview_image) VALUES($1, $2, $3, $4)", page.Header.URI, page.Header.Title, page.Header.Description, page.Header.PreviewImage)
 		if err != nil {
 			logMessage(2, err.Error())
 			return err
@@ -271,7 +289,7 @@ func updateFromSitemap(sitemap scrapbookSitemap) error {
 func updateFromElement(element scrapbookElement, parentType string, parentID string, sequenceNumber int) error {
 	logMessage(5, fmt.Sprintf("Processing element %s: %s", element.ID, element.Name))
 	logMessage(5, element.Content)
-	_, err := db.Exec("INSERT INTO scrapbook_data.elements(element_id, parent_type, parent_id, sequence_number, element_name, style_id, pos_anchor, pos_x, pos_y, pos_z, width, height, is_link, link_url, content) VALUES ($1, $2, $3 ,$4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)", element.ID, parentType, parentID, sequenceNumber, element.Name, element.StyleID, element.PosAnchor, element.PosX, element.PosY, element.PosZ, element.Width, element.Height, parseBoolToInt(element.IsLink), element.LinkURL, element.Content)
+	_, err := db.Exec("INSERT INTO scrapbook_data.elements(element_id, parent_type, parent_id, sequence_number, element_name, style_id, pos_anchor, pos_x, pos_y, pos_z, width, height, is_link, link_url, content_type, content) VALUES ($1, $2, $3 ,$4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)", element.ID, parentType, parentID, sequenceNumber, element.Name, element.StyleID, element.PosAnchor, element.PosX, element.PosY, element.PosZ, element.Width, element.Height, parseBoolToInt(element.IsLink), element.LinkURL, element.ContentType, element.Content)
 	if err != nil {
 		logMessage(2, err.Error())
 		return err
@@ -636,20 +654,33 @@ func handleServeSitemap(response http.ResponseWriter, request *http.Request) {
 		fonts  []scrapbookFont  = []scrapbookFont{}
 	)
 
-	pageRows, err := db.Query("SELECT page_title, page_uri FROM scrapbook_data.pages")
+	pageRows, err := db.Query("SELECT page_title, page_uri, page_description, preview_image FROM scrapbook_data.pages")
 	if err != nil {
 		logMessage(2, err.Error())
 		return
 	}
 
 	for pageRows.Next() {
-		var title, uri string
-		pageRows.Scan(&title, &uri)
+		var (
+			title           string
+			description     string
+			uri             string
+			hasPreviewImage bool
+			previewImage    string
+		)
+		pageRows.Scan(&title, &uri, &description, &previewImage)
+
+		if previewImage != "" {
+			hasPreviewImage = true
+		}
 
 		pages = append(pages, scrapbookPage{
 			scrapbookPageHeader{
 				title,
 				uri,
+				description,
+				hasPreviewImage,
+				previewImage,
 			},
 			getNestedElements("page", uri),
 		})

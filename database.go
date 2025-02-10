@@ -41,7 +41,7 @@ func dbConnect(n int) error {
 		return err
 	}
 
-	_, err = db.Exec("CREATE TABLE IF NOT EXISTS scrapbook_data.pages (page_uri VARCHAR(128) NOT NULL PRIMARY KEY, page_title VARCHAR(128) NOT NULL DEFAULT 'New Page')")
+	_, err = db.Exec("CREATE TABLE IF NOT EXISTS scrapbook_data.pages (page_uri VARCHAR(128) NOT NULL PRIMARY KEY, page_title VARCHAR(128) NOT NULL DEFAULT 'New Page', page_description TEXT NOT NULL DEFAULT 'Default Description', preview_image VARCHAR(8) NOT NULL DEFAULT '')")
 	if err != nil {
 		return err
 	}
