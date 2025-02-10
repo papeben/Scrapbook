@@ -94,271 +94,49 @@ type scrapbookFont struct {
 }
 
 func httpHandler(response http.ResponseWriter, request *http.Request) {
-	var (
-		title string
-		page  scrapbookPageHeader
-	)
 
 	logMessage(4, fmt.Sprintf("%s: %s", request.RemoteAddr, request.RequestURI))
 
-	// Edit API
-	if request.URL.Path == "/editapi/requestedit" {
-		query, err := url.ParseQuery(request.URL.RawQuery)
-		if err != nil {
-			response.WriteHeader(500)
-			fmt.Fprint(response, "Error.")
-			return
-		}
-
-		if query.Get("p") != EDIT_PASSWORD {
-			response.WriteHeader(401)
-			fmt.Fprint(response, "Invalid.")
-			return
-		}
-
-		logMessage(4, fmt.Sprintf("Editor %s authenticated", request.RemoteAddr))
-		token, err := createEditorSession()
-		if err != nil {
-			logMessage(2, err.Error())
-			response.WriteHeader(500)
-			fmt.Fprint(response, "Error.")
-			return
-		}
-
-		_, err = db.Exec("INSERT INTO scrapbook_data.editors(session_id) VALUES($1)", token)
-		if err != nil {
-			logMessage(2, err.Error())
-			response.WriteHeader(500)
-			fmt.Fprint(response, "Error.")
-			return
-		}
-
-		cookie := http.Cookie{Name: EDIT_COOKIE, Value: token, SameSite: http.SameSiteStrictMode, Secure: false, Path: "/"}
-		http.SetCookie(response, &cookie)
-		response.WriteHeader(200)
-		fmt.Fprint(response, "Ok.")
-		return
-
-	}
-
-	// Edit API save
-	if request.URL.Path == "/editapi/save" && request.Method == "POST" {
-		var sitemap scrapbookSitemap
-
-		if !isSessionAuthenticated(response, request) {
-			return
-		}
-
-		err := json.NewDecoder(request.Body).Decode(&sitemap)
-		if err != nil {
-			logMessage(2, err.Error())
-			response.WriteHeader(500)
-			fmt.Fprintf(response, "Error.")
-		} else {
-			updateFromSitemap(sitemap)
-			fmt.Fprintf(response, "Ok.")
-		}
-		return
-	}
-
-	// Edit api upload
-	if request.URL.Path == "/editapi/upload" && request.Method == "POST" {
+	if request.URL.Path == "/editapi/requestedit" { // Edit API
+		handleRequestEdit(response, request)
+	} else if request.URL.Path == "/editapi/save" && request.Method == "POST" { // Edit API save
+		handleSave(response, request)
+	} else if request.URL.Path == "/editapi/upload" && request.Method == "POST" { // Edit api upload
 		handleMediaUpload(response, request)
-		return
-	}
-
-	// Media
-	if strings.HasPrefix(request.URL.Path, MEDIA_DIRECTORY) {
-		pathSplit := strings.Split(request.URL.Path, "/")
-		mediaID := strings.Split(pathSplit[len(pathSplit)-1], ".")[0]
-		var data []byte
-
-		err := db.QueryRow("SELECT media_data FROM scrapbook_data.media_versions WHERE media_version_id = $1", mediaID).Scan(&data)
-		if err == sql.ErrNoRows {
-			response.WriteHeader(404)
-			fmt.Fprint(response, `Not Found.`)
-			return
-		} else if err != nil {
-			response.WriteHeader(500)
-			fmt.Fprint(response, `Error.`)
-			return
-		}
-
-		_, err = response.Write(data)
-		if err != nil {
-			response.WriteHeader(500)
-			fmt.Fprint(response, `Error.`)
-			return
-		}
-		return
-	}
-
-	// Fonts
-	if strings.HasPrefix(request.URL.Path, FONT_DIRECTORY) {
-		pathSplit := strings.Split(request.URL.Path, "/")
-		fontID := strings.Split(pathSplit[len(pathSplit)-1], ".")[0]
-		var data []byte
-
-		err := db.QueryRow("SELECT font_bytes FROM scrapbook_data.fonts WHERE font_id = $1", fontID).Scan(&data)
-		if err == sql.ErrNoRows {
-			response.WriteHeader(404)
-			fmt.Fprint(response, `Not Found.`)
-			return
-		} else if err != nil {
-			response.WriteHeader(500)
-			fmt.Fprint(response, `Error.`)
-			return
-		}
-
-		_, err = response.Write(data)
-		if err != nil {
-			response.WriteHeader(500)
-			fmt.Fprint(response, `Error.`)
-			return
-		}
-		return
-	}
-
-	// Serve sitemap
-	if request.URL.Path == "/sitemap.json" {
+	} else if strings.HasPrefix(request.URL.Path, MEDIA_DIRECTORY) { // Serve media
+		handleServeMedia(response, request)
+	} else if strings.HasPrefix(request.URL.Path, FONT_DIRECTORY) { // Serve fonts
+		handleServeFont(response, request)
+	} else if request.URL.Path == "/sitemap.json" { // Serve sitemap
+		handleServeSitemap(response, request)
+	} else { // Serve page (or 404 if no page)
 		var (
-			pages  []scrapbookPage  = []scrapbookPage{}
-			styles []scrapbookStyle = []scrapbookStyle{}
-			media  []scrapbookMedia = []scrapbookMedia{}
-			fonts  []scrapbookFont  = []scrapbookFont{}
+			title string
+			page  scrapbookPageHeader
 		)
-
-		pageRows, err := db.Query("SELECT page_title, page_uri FROM scrapbook_data.pages")
-		if err != nil {
-			logMessage(2, err.Error())
-			return
-		}
-
-		for pageRows.Next() {
-			var title, uri string
-			pageRows.Scan(&title, &uri)
-
-			pages = append(pages, scrapbookPage{
-				scrapbookPageHeader{
-					title,
-					uri,
-				},
-				getNestedElements("page", uri),
-			})
-		}
-		pageRows.Close()
-
-		styleRows, err := db.Query("SELECT style_id, style_name, background_type, background_data, background_position, background_size, font_family, font_size, font_weight, font_color, margin, padding, text_align, border_width, border_style, border_color, custom_css FROM scrapbook_data.styles")
-		if err != nil {
-			logMessage(2, err.Error())
-			return
-		}
-
-		for styleRows.Next() {
-			var id, name, background_type, background_data, background_position, background_size, font_family, font_color, text_align, font_weight, border_style, border_color, custom_css string
-			var border_width int
-			var font_size, margin, padding float32
-			styleRows.Scan(&id, &name, &background_type, &background_data, &background_position, &background_size, &font_family, &font_size, &font_weight, &font_color, &margin, &padding, &text_align, &border_width, &border_style, &border_color, &custom_css)
-
-			styles = append(styles, scrapbookStyle{
-				id, name, background_type, background_data, background_position, background_size, font_family, font_size, font_weight, font_color, margin, padding, text_align, border_width, border_style, border_color, custom_css,
-			})
-		}
-		styleRows.Close()
-
-		mediaRows, err := db.Query("SELECT media_id, media_type, media_name FROM scrapbook_data.media")
-		if err != nil {
-			logMessage(2, err.Error())
-			return
-		}
-		for mediaRows.Next() {
-			var mediaID, mediaType, mediaName string
-			mediaRows.Scan(&mediaID, &mediaType, &mediaName)
-			mediaVersionRows, err := db.Query("SELECT media_version_id, version_width, version_height FROM scrapbook_data.media_versions WHERE media_id = $1", mediaID)
-			if err != nil {
-				logMessage(2, err.Error())
-				return
+		err := db.QueryRow("SELECT page_title FROM scrapbook_data.pages WHERE page_uri = $1", request.URL.Path).Scan(&title) // Get page info from database
+		if err == sql.ErrNoRows {
+			page = scrapbookPageHeader{
+				"Page Not Found",
+				request.URL.Path,
 			}
-			var mediaVersions = []scrapbookMediaVersion{}
-			for mediaVersionRows.Next() {
-				var (
-					mediaVersionID string
-					versionWidth   int
-					versionHeight  int
-				)
-				mediaVersionRows.Scan(&mediaVersionID, &versionWidth, &versionHeight)
-				mediaVersions = append(mediaVersions, scrapbookMediaVersion{
-					mediaVersionID,
-					versionWidth,
-					versionHeight,
-				})
+			response.WriteHeader(404)
+		} else if err != sql.ErrNoRows && err != nil {
+			logMessage(2, err.Error())
+		} else {
+			page = scrapbookPageHeader{
+				title,
+				request.URL.Path,
 			}
-			media = append(media, scrapbookMedia{
-				mediaID,
-				mediaType,
-				mediaName,
-				mediaVersions,
-			})
 		}
-		mediaRows.Close()
 
-		fontRows, err := db.Query("SELECT font_id, font_name FROM scrapbook_data.fonts")
+		formTemplate, err = template.ParseFiles("scrapbook.html") // TODO REMOVE LINE
+		err = formTemplate.Execute(response, page)
 		if err != nil {
-			logMessage(2, err.Error())
-			return
-		}
-		for fontRows.Next() {
-			var fontID, fontName string
-			fontRows.Scan(&fontID, &fontName)
-
-			fonts = append(fonts, scrapbookFont{
-				fontID,
-				fontName,
-			})
-		}
-		mediaRows.Close()
-
-		jsonBytes, err := json.Marshal(scrapbookSitemap{
-			pages,
-			styles,
-			media,
-			fonts,
-		})
-
-		if err != nil {
-			logMessage(2, err.Error())
-			return
-		}
-
-		fmt.Fprint(response, string(jsonBytes))
-
-		return
-	}
-
-	// Get page info from database
-	err := db.QueryRow("SELECT page_title FROM scrapbook_data.pages WHERE page_uri = $1", request.URL.Path).Scan(&title)
-	if err == sql.ErrNoRows {
-		page = scrapbookPageHeader{
-			"Page Not Found",
-			request.URL.Path,
-		}
-		response.WriteHeader(404)
-	} else if err != sql.ErrNoRows && err != nil {
-		logMessage(2, err.Error())
-	} else {
-		page = scrapbookPageHeader{
-			title,
-			request.URL.Path,
+			logMessage(1, err.Error())
+			fmt.Fprintf(response, "Error.")
 		}
 	}
-
-	formTemplate, err = template.ParseFiles("scrapbook.html")
-	err = formTemplate.Execute(response, page)
-	if err != nil {
-		logMessage(1, err.Error())
-		fmt.Fprintf(response, "Error.")
-	}
-
 }
 
 func createEditorSession() (string, error) {
@@ -428,7 +206,6 @@ func getNestedElements(parentType string, parentId string) []scrapbookElement {
 	)
 
 	for elementRows.Next() {
-
 		elementRows.Scan(&element_id, &element_name, &style_id, &pos_anchor, &pos_x, &pos_y, &pos_z, &width, &height, &is_link, &link_url, &content)
 		logMessage(5, content)
 		elements = append(elements, scrapbookElement{
@@ -451,8 +228,6 @@ func getNestedElements(parentType string, parentId string) []scrapbookElement {
 }
 
 func updateFromSitemap(sitemap scrapbookSitemap) error {
-	// Update styles
-
 	_, err := db.Exec("DELETE FROM scrapbook_data.styles")
 	if err != nil {
 		logMessage(2, err.Error())
@@ -490,7 +265,6 @@ func updateFromSitemap(sitemap scrapbookSitemap) error {
 			updateFromElement(element, "page", page.Header.URI, i)
 		}
 	}
-
 	return nil
 }
 
@@ -507,14 +281,6 @@ func updateFromElement(element scrapbookElement, parentType string, parentID str
 		updateFromElement(child, "element", element.ID, i)
 	}
 	return nil
-}
-
-func parseBoolToInt(value bool) int {
-	if value {
-		return 1
-	} else {
-		return 0
-	}
 }
 
 func handleMediaUpload(response http.ResponseWriter, request *http.Request) {
@@ -757,4 +523,220 @@ func handleFontUpload(response http.ResponseWriter, handler *multipart.FileHeade
 
 	response.WriteHeader(200)
 	fmt.Fprintf(response, "Ok.")
+}
+
+func handleRequestEdit(response http.ResponseWriter, request *http.Request) {
+	query, err := url.ParseQuery(request.URL.RawQuery)
+	if err != nil {
+		response.WriteHeader(500)
+		fmt.Fprint(response, "Error.")
+		return
+	}
+
+	if query.Get("p") != EDIT_PASSWORD {
+		response.WriteHeader(401)
+		fmt.Fprint(response, "Invalid.")
+		return
+	}
+
+	logMessage(4, fmt.Sprintf("Editor %s authenticated", request.RemoteAddr))
+	token, err := createEditorSession()
+	if err != nil {
+		logMessage(2, err.Error())
+		response.WriteHeader(500)
+		fmt.Fprint(response, "Error.")
+		return
+	}
+
+	_, err = db.Exec("INSERT INTO scrapbook_data.editors(session_id) VALUES($1)", token)
+	if err != nil {
+		logMessage(2, err.Error())
+		response.WriteHeader(500)
+		fmt.Fprint(response, "Error.")
+		return
+	}
+
+	cookie := http.Cookie{Name: EDIT_COOKIE, Value: token, SameSite: http.SameSiteStrictMode, Secure: false, Path: "/"}
+	http.SetCookie(response, &cookie)
+	response.WriteHeader(200)
+	fmt.Fprint(response, "Ok.")
+}
+
+func handleSave(response http.ResponseWriter, request *http.Request) {
+	var sitemap scrapbookSitemap
+
+	if !isSessionAuthenticated(response, request) {
+		return
+	}
+
+	err := json.NewDecoder(request.Body).Decode(&sitemap)
+	if err != nil {
+		logMessage(2, err.Error())
+		response.WriteHeader(500)
+		fmt.Fprintf(response, "Error.")
+	} else {
+		updateFromSitemap(sitemap)
+		fmt.Fprintf(response, "Ok.")
+	}
+}
+
+func handleServeMedia(response http.ResponseWriter, request *http.Request) {
+	pathSplit := strings.Split(request.URL.Path, "/")
+	mediaID := strings.Split(pathSplit[len(pathSplit)-1], ".")[0]
+	var data []byte
+
+	err := db.QueryRow("SELECT media_data FROM scrapbook_data.media_versions WHERE media_version_id = $1", mediaID).Scan(&data)
+	if err == sql.ErrNoRows {
+		response.WriteHeader(404)
+		fmt.Fprint(response, `Not Found.`)
+		return
+	} else if err != nil {
+		response.WriteHeader(500)
+		fmt.Fprint(response, `Error.`)
+		return
+	}
+
+	_, err = response.Write(data)
+	if err != nil {
+		response.WriteHeader(500)
+		fmt.Fprint(response, `Error.`)
+		return
+	}
+}
+
+func handleServeFont(response http.ResponseWriter, request *http.Request) {
+	pathSplit := strings.Split(request.URL.Path, "/")
+	fontID := strings.Split(pathSplit[len(pathSplit)-1], ".")[0]
+	var data []byte
+
+	err := db.QueryRow("SELECT font_bytes FROM scrapbook_data.fonts WHERE font_id = $1", fontID).Scan(&data)
+	if err == sql.ErrNoRows {
+		response.WriteHeader(404)
+		fmt.Fprint(response, `Not Found.`)
+		return
+	} else if err != nil {
+		response.WriteHeader(500)
+		fmt.Fprint(response, `Error.`)
+		return
+	}
+
+	_, err = response.Write(data)
+	if err != nil {
+		response.WriteHeader(500)
+		fmt.Fprint(response, `Error.`)
+		return
+	}
+}
+
+func handleServeSitemap(response http.ResponseWriter, request *http.Request) {
+	var (
+		pages  []scrapbookPage  = []scrapbookPage{}
+		styles []scrapbookStyle = []scrapbookStyle{}
+		media  []scrapbookMedia = []scrapbookMedia{}
+		fonts  []scrapbookFont  = []scrapbookFont{}
+	)
+
+	pageRows, err := db.Query("SELECT page_title, page_uri FROM scrapbook_data.pages")
+	if err != nil {
+		logMessage(2, err.Error())
+		return
+	}
+
+	for pageRows.Next() {
+		var title, uri string
+		pageRows.Scan(&title, &uri)
+
+		pages = append(pages, scrapbookPage{
+			scrapbookPageHeader{
+				title,
+				uri,
+			},
+			getNestedElements("page", uri),
+		})
+	}
+	pageRows.Close()
+
+	styleRows, err := db.Query("SELECT style_id, style_name, background_type, background_data, background_position, background_size, font_family, font_size, font_weight, font_color, margin, padding, text_align, border_width, border_style, border_color, custom_css FROM scrapbook_data.styles")
+	if err != nil {
+		logMessage(2, err.Error())
+		return
+	}
+
+	for styleRows.Next() {
+		var id, name, background_type, background_data, background_position, background_size, font_family, font_color, text_align, font_weight, border_style, border_color, custom_css string
+		var border_width int
+		var font_size, margin, padding float32
+		styleRows.Scan(&id, &name, &background_type, &background_data, &background_position, &background_size, &font_family, &font_size, &font_weight, &font_color, &margin, &padding, &text_align, &border_width, &border_style, &border_color, &custom_css)
+
+		styles = append(styles, scrapbookStyle{
+			id, name, background_type, background_data, background_position, background_size, font_family, font_size, font_weight, font_color, margin, padding, text_align, border_width, border_style, border_color, custom_css,
+		})
+	}
+	styleRows.Close()
+
+	mediaRows, err := db.Query("SELECT media_id, media_type, media_name FROM scrapbook_data.media")
+	if err != nil {
+		logMessage(2, err.Error())
+		return
+	}
+	for mediaRows.Next() {
+		var mediaID, mediaType, mediaName string
+		mediaRows.Scan(&mediaID, &mediaType, &mediaName)
+		mediaVersionRows, err := db.Query("SELECT media_version_id, version_width, version_height FROM scrapbook_data.media_versions WHERE media_id = $1", mediaID)
+		if err != nil {
+			logMessage(2, err.Error())
+			return
+		}
+		var mediaVersions = []scrapbookMediaVersion{}
+		for mediaVersionRows.Next() {
+			var (
+				mediaVersionID string
+				versionWidth   int
+				versionHeight  int
+			)
+			mediaVersionRows.Scan(&mediaVersionID, &versionWidth, &versionHeight)
+			mediaVersions = append(mediaVersions, scrapbookMediaVersion{
+				mediaVersionID,
+				versionWidth,
+				versionHeight,
+			})
+		}
+		media = append(media, scrapbookMedia{
+			mediaID,
+			mediaType,
+			mediaName,
+			mediaVersions,
+		})
+	}
+	mediaRows.Close()
+
+	fontRows, err := db.Query("SELECT font_id, font_name FROM scrapbook_data.fonts")
+	if err != nil {
+		logMessage(2, err.Error())
+		return
+	}
+	for fontRows.Next() {
+		var fontID, fontName string
+		fontRows.Scan(&fontID, &fontName)
+
+		fonts = append(fonts, scrapbookFont{
+			fontID,
+			fontName,
+		})
+	}
+	mediaRows.Close()
+
+	jsonBytes, err := json.Marshal(scrapbookSitemap{
+		pages,
+		styles,
+		media,
+		fonts,
+	})
+
+	if err != nil {
+		logMessage(2, err.Error())
+		return
+	}
+
+	fmt.Fprint(response, string(jsonBytes))
 }

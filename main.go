@@ -123,3 +123,11 @@ func errWithWeb(err error, response http.ResponseWriter, statusMessage string) {
 	response.WriteHeader(500)
 	fmt.Fprintf(response, "An internal error occurred.")
 }
+
+func parseBoolToInt(value bool) int {
+	if value {
+		return 1
+	} else {
+		return 0
+	}
+}
