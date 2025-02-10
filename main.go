@@ -25,6 +25,7 @@ var (
 	EDIT_COOKIE           = envWithDefault("EDIT_COOKIE", "scrapbook-edit")
 	HTTP_PORT             = envWithDefault("HTTP_PORT", "8080")
 	MEDIA_DIRECTORY       = envWithDefault("MEDIA_WEB_DIR", "/media")
+	FONT_DIRECTORY        = envWithDefault("FONT_WEB_DIR", "/font")
 	TEMP_DIRECTORY        = envWithDefault("TEMP_DIR", "/tmp")
 	sevMap                = [6]string{"FATAL", "CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"}
 	imageResolutionSteps  = [10]int{144, 240, 360, 480, 576, 720, 960, 1080, 1440, 2160}

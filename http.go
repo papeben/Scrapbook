@@ -161,12 +161,39 @@ func httpHandler(response http.ResponseWriter, request *http.Request) {
 		return
 	}
 
+	// Media
 	if strings.HasPrefix(request.URL.Path, MEDIA_DIRECTORY) {
 		pathSplit := strings.Split(request.URL.Path, "/")
 		mediaID := strings.Split(pathSplit[len(pathSplit)-1], ".")[0]
 		var data []byte
 
 		err := db.QueryRow("SELECT media_data FROM scrapbook_data.media_versions WHERE media_version_id = $1", mediaID).Scan(&data)
+		if err == sql.ErrNoRows {
+			response.WriteHeader(404)
+			fmt.Fprint(response, `Not Found.`)
+			return
+		} else if err != nil {
+			response.WriteHeader(500)
+			fmt.Fprint(response, `Error.`)
+			return
+		}
+
+		_, err = response.Write(data)
+		if err != nil {
+			response.WriteHeader(500)
+			fmt.Fprint(response, `Error.`)
+			return
+		}
+		return
+	}
+
+	// Fonts
+	if strings.HasPrefix(request.URL.Path, FONT_DIRECTORY) {
+		pathSplit := strings.Split(request.URL.Path, "/")
+		fontID := strings.Split(pathSplit[len(pathSplit)-1], ".")[0]
+		var data []byte
+
+		err := db.QueryRow("SELECT font_bytes FROM scrapbook_data.fonts WHERE font_id = $1", fontID).Scan(&data)
 		if err == sql.ErrNoRows {
 			response.WriteHeader(404)
 			fmt.Fprint(response, `Not Found.`)
@@ -690,14 +717,15 @@ func handleFontUpload(response http.ResponseWriter, handler *multipart.FileHeade
 		return
 	}
 
-	var fontBytes []byte
-	_, err = file.Read(fontBytes)
+	fontBuffer := new(bytes.Buffer)
+	n, err := fontBuffer.ReadFrom(file)
+	logMessage(5, fmt.Sprintf("Read %v bytes from font file.", n))
 	if err != nil {
 		errWithWeb(err, response, "Error reading font file.")
 		return
 	}
 
-	_, err = db.Exec("INSERT INTO scrapbook_data.fonts(font_id, font_name, font_bytes) VALUES ($1, $2, $3)", fontID, handler.Filename, fontBytes)
+	_, err = db.Exec("INSERT INTO scrapbook_data.fonts(font_id, font_name, font_bytes) VALUES ($1, $2, $3)", fontID, handler.Filename, fontBuffer.Bytes())
 	if err != nil {
 		errWithWeb(err, response, "Error adding font db record.")
 		return
