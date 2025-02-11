@@ -83,8 +83,8 @@
             }
             
             newDOMElement.innerHTML = element.Content
-            newDOMElement.style.height = `${element.Height}rem`
-            newDOMElement.style.width = `${element.Width}rem`
+            newDOMElement.style.height = `${element.Height}`
+            newDOMElement.style.width = `${element.Width}`
             newDOMElement.id = element.ID
 
             for (var i = 0; i < Sitemap.Styles.length; i++){
@@ -447,8 +447,8 @@
                 Children: [],
                 Content: "",
                 ContentType: "",
-                Height: 100,
-                Width: 100,
+                Height: "200px",
+                Width: "200px",
                 ID: createElementID(),
                 IsLink: false,
                 Name: "New Box",
@@ -456,7 +456,7 @@
                 PosX: 0,
                 PosY: 0,
                 PosZ: 0,
-                StyleID: "AAAAAAAA"
+                StyleID: "BBBBBBBB"
             }
         }
 

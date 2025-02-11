@@ -42,8 +42,8 @@ type scrapbookElement struct {
 	PosX        float32
 	PosY        float32
 	PosZ        int
-	Width       float32
-	Height      float32
+	Width       string
+	Height      string
 	IsLink      bool
 	LinkURL     string
 	ContentType string
@@ -215,8 +215,8 @@ func getNestedElements(parentType string, parentId string) []scrapbookElement {
 		pos_x        float32
 		pos_y        float32
 		pos_z        int
-		width        float32
-		height       float32
+		width        string
+		height       string
 		is_link      bool
 		link_url     string
 		content_type string
