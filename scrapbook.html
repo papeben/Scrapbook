@@ -45,7 +45,7 @@
         }
 
         function renderElement(element){
-            let newDOMElement 
+            let newDOMElement
             if (element.IsLink) {
                 newDOMElement = document.createElement("a")
                 newDOMElement.href = element.LinkURL
@@ -79,10 +79,7 @@
                 }
             }
 
-            
-            if (element.Children.length == 0){
-                newDOMElement.contentEditable = true
-            }
+            // Chrome default behaviour fix
             newDOMElement.addEventListener('keypress', function(event) {
                 if (event.keyCode == 13 && event.shiftKey == false) { // enter keycode is 13
                 event.preventDefault(); 
@@ -96,8 +93,35 @@
             newDOMElement.addEventListener("input", function(e){
                 editTargetDiv.Content = document.getElementById(editTargetDiv.ID).innerText
                 e.stopPropagation()
-            })                
+            })
             
+            if (element.ContentType == "text"){
+                newDOMElement.contentEditable = true
+            }
+            else if (element.ContentType == ""){
+
+            }
+            
+            // Add box buttons
+            let above = document.createElement("button")
+            above.innerHTML = "Add Box Above"
+            above.onclick = function(){
+                let parentList = getElementListByID(element.ID)
+                let index = parentList.indexOf(element)
+                parentList.splice(index, 0, createDefaultElement())
+                renderPage()
+            }
+            newDOMElement.appendChild(above)
+
+            let below = document.createElement("button")
+            below.innerHTML = "Add Box Below"
+            below.onclick = function(){
+                let parentList = getElementListByID(element.ID)
+                let index = parentList.indexOf(element)
+                parentList.splice(index+1, 0, createDefaultElement())
+                renderPage()
+            }
+            newDOMElement.appendChild(below)
             
             for (var i = 0; i < element.Children.length; i++){
                 newDOMElement.appendChild(renderElement(element.Children[i]))
@@ -299,6 +323,32 @@
             }
         }
 
+        function getElementListByID(elementID){
+            for (var i = 0; i < Sitemap.Pages.length; i++){
+                for (var j = 0; j < Sitemap.Pages[i].Elements.length; j++){
+                    let foundElementList = nestedElementListSearch(elementID, Sitemap.Pages[i].Elements)
+                    if (foundElementList) {
+                        return foundElementList
+                    }
+                }
+            }
+            return false
+        }
+
+        function nestedElementListSearch(elementID, searchElementList){
+            for (let i = 0; i < searchElementList.length; i++){
+                if (searchElementList[i].ID == elementID){
+                    return searchElementList
+                } else {
+                    let foundElementList = nestedElementListSearch(elementID, searchElementList[i].Children)
+                    if (foundElementList) {
+                        return foundElementList
+                    }
+                }                
+            }
+            return false
+        }
+
         function uploadFile() {
             var file = document.getElementById("file-upload").files[0]
             document.getElementById("file-upload-label").style.display = "none"
@@ -344,6 +394,24 @@
             document.getElementById("upbar-inner").style.backgroundColor = "green";
             document.getElementById("upbar-text").innerHTML = "Done"
             document.getElementById("file-upload-label").style.display = "inline-block"
+        }
+
+        function createDefaultElement(){
+            return {
+                Children: [],
+                Content: "",
+                ContentType: "",
+                Height: 100,
+                Width: 100,
+                ID: "TEMPIDID",
+                IsLink: false,
+                Name: "TEMPNAME",
+                PosAnchor: "none",
+                PosX: 0,
+                PosY: 0,
+                PosZ: 0,
+                StyleID: "AAAAAAAA"
+            }
         }
 
         window.onload = init
