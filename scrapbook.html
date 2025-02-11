@@ -7,11 +7,39 @@
         input[type="file"] {
             display: none;
         }
+        div {
+            position: relative;
+        }
         .custom-file-upload {
             border: 1px solid #ccc;
             display: inline-block;
             padding: 6px 12px;
             cursor: pointer;
+        }
+        .add-above {
+            position: absolute;
+            top: 0px;
+            left: 0px;
+            height: 20px;
+        }
+        .add-below {
+            position: absolute;
+            bottom: 0px;
+            left: 0px;
+            height: 20px;
+        }
+        .select-type {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+        .internal-media {
+            position: absolute;
+            top: 0px;
+            left: 0px;
+            height: 100%;
+            width: 100%;
         }
     </style>
     <script>
@@ -91,7 +119,9 @@
                 e.stopPropagation()
             })
             newDOMElement.addEventListener("input", function(e){
-                editTargetDiv.Content = document.getElementById(editTargetDiv.ID).innerText
+                if (e.inputType == "insertText"){
+                    editTargetDiv.Content = document.getElementById(editTargetDiv.ID).innerText
+                }
                 e.stopPropagation()
             })
             
@@ -99,12 +129,27 @@
                 newDOMElement.contentEditable = true
             }
             else if (element.ContentType == ""){
-
+                typeSelect = document.createElement("select")
+                typeSelect.classList.add("select-type")
+                optionList = ["Select Content Type", "Boxes", "Text", "Image", "Video"]
+                optionList.forEach(t => {
+                    let o = document.createElement("option")
+                    o.innerHTML = t
+                    o.value = t.toLowerCase()
+                    typeSelect.appendChild(o)
+                });
+                typeSelect.onchange = function(){
+                    setElementValue(element.ID, "ContentType", typeSelect.value)
+                    renderPage()
+                }
+                newDOMElement.appendChild(typeSelect)
             }
+            
             
             // Add box buttons
             let above = document.createElement("button")
             above.innerHTML = "Add Box Above"
+            above.classList.add("add-above")
             above.onclick = function(){
                 let parentList = getElementListByID(element.ID)
                 let index = parentList.indexOf(element)
@@ -115,6 +160,7 @@
 
             let below = document.createElement("button")
             below.innerHTML = "Add Box Below"
+            below.classList.add("add-below")
             below.onclick = function(){
                 let parentList = getElementListByID(element.ID)
                 let index = parentList.indexOf(element)
@@ -292,7 +338,7 @@
         }
 
         function setElementValue(elementID, key, value){
-            let target = getElementById(elementID)
+            let target = getElementByID(elementID)
             target[key] = value
         }
 
@@ -403,15 +449,33 @@
                 ContentType: "",
                 Height: 100,
                 Width: 100,
-                ID: "TEMPIDID",
+                ID: createElementID(),
                 IsLink: false,
-                Name: "TEMPNAME",
+                Name: "New Box",
                 PosAnchor: "none",
                 PosX: 0,
                 PosY: 0,
                 PosZ: 0,
                 StyleID: "AAAAAAAA"
             }
+        }
+
+        function createElementID(){
+            let newID = generateRandomString(8)
+            if (getElementByID(newID)){
+                return createElementID
+            }
+            return newID
+        }
+
+        function generateRandomString(length) {
+            const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+            let result = '';
+            const charactersLength = characters.length;
+            for (let i = 0; i < length; i++) {
+                result += characters.charAt(Math.floor(Math.random() * charactersLength));
+            }
+            return result;
         }
 
         window.onload = init
