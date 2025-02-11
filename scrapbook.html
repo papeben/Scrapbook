@@ -4,7 +4,15 @@
         <title>{{ .Title }}</title>
     </head>
     <style>
-
+        input[type="file"] {
+            display: none;
+        }
+        .custom-file-upload {
+            border: 1px solid #ccc;
+            display: inline-block;
+            padding: 6px 12px;
+            cursor: pointer;
+        }
     </style>
     <script>
         var Sitemap
@@ -31,6 +39,7 @@
                     for (let j = 0; j < Sitemap.Pages[i].Elements.length; j++){
                         document.getElementById("page-frame").appendChild(renderElement(Sitemap.Pages[i].Elements[j]))
                     }
+                    createPageEditors(Sitemap.Pages[i])
                     return
                 }
             }
@@ -109,7 +118,7 @@
             }
         }
 
-        async function saveEdit(url, data) {
+        async function saveEdit() {
             const options = {
                 method: 'POST', // HTTP method
                 headers: {
@@ -146,6 +155,85 @@
             }
         }
 
+        function createPageEditors(page){
+            let frame = document.getElementById("edit-page")
+            frame.innerHTML = ""
+
+            // Title edit
+            let f = document.createElement("div")
+            let t = document.createElement("div")
+            t.innerHTML = "Page Title"
+            let p = document.createElement("input")
+            p.type = "text"
+            p.value = page.Header.Title
+            p.addEventListener("change", (e)=>{
+                setPageHeaderValue("Title", p.value)
+            })
+            f.appendChild(t)
+            f.appendChild(p)
+            frame.appendChild(f)
+
+            // URI edit
+            f = document.createElement("div")
+            t = document.createElement("div")
+            t.innerHTML = "Page URI"
+            u = document.createElement("input")
+            u.type = "text"
+            u.value = page.Header.URI
+            u.addEventListener("change", (e)=>{
+                setPageHeaderValue("URI", u.value)
+                window.history.pushState("Test", "processing", u.value);
+                renderPage()
+                createPageButtons()
+            })
+            f.appendChild(t)
+            f.appendChild(u)
+            frame.appendChild(f)
+
+            // Description edit
+            f = document.createElement("div")
+            t = document.createElement("div")
+            t.innerHTML = "Page Description"
+            d = document.createElement("input")
+            d.type = "text"
+            d.value = page.Header.Description
+            d.addEventListener("change", (e)=>{
+                setPageHeaderValue("Description", d.value)
+            })
+            f.appendChild(t)
+            f.appendChild(d)
+            frame.appendChild(f)
+
+            // PreviewImage edit
+            f = document.createElement("div")
+            t = document.createElement("div")
+            t.innerHTML = "Preview Image"
+            s = document.createElement("select")
+            n = document.createElement("option")
+            n.value = ""
+            n.innerHTML = "None"
+            s.appendChild(n)
+            for (var j = 0; j < Sitemap.Media.length; j++){
+                o = document.createElement("option")
+                o.value = Sitemap.Media[j].MediaID
+                o.innerHTML = Sitemap.Media[j].MediaName
+                s.appendChild(o)
+            }
+            s.value = page.Header.PreviewImage
+            s.addEventListener("change", (e)=>{
+                setPageHeaderValue("PreviewImage", s.value)
+                if (s.value != "") {
+                    setPageHeaderValue("HasPreviewImage", true)
+                } else {
+                    setPageHeaderValue("HasPreviewImage", false)
+                }
+            })
+
+            f.appendChild(t)
+            f.appendChild(s)
+            frame.appendChild(f)
+        }
+
         function createNewPage(){
             let i = 0;
             while (i < 100) {
@@ -173,7 +261,60 @@
             createPageButtons()
         }
 
+        function setPageHeaderValue(key, value){
+            for (var i = 0; i < Sitemap.Pages.length; i++){
+                if (Sitemap.Pages[i].Header.URI == window.location.pathname){
+                    Sitemap.Pages[i].Header[key] = value
+                }
+            }
+        }
 
+        function uploadFile() {
+            var file = document.getElementById("file-upload").files[0]
+            document.getElementById("file-upload-label").style.display = "none"
+            var formdata = new FormData();
+            formdata.append("upload", file);
+            var uploadReq = new XMLHttpRequest();
+            uploadReq.upload.addEventListener("progress", progressHandler, false);
+            uploadReq.addEventListener("load", completeHandler, false);
+            uploadReq.addEventListener("error", errorHandler, false);
+            uploadReq.addEventListener("abort", abortHandler, false);
+            uploadReq.open("POST", "/editapi/upload");
+            uploadReq.send(formdata);
+        }
+
+        function progressHandler(event) {
+            var bar = document.getElementById("upbar-inner");
+            var uploadStatus = document.getElementById("upbar-text");
+            var percent = (event.loaded / event.total) * 100;
+            if (percent == 100) {
+                uploadStatus.innerHTML = `Processing`;
+                bar.style.width = `${percent}%`;
+                bar.style.backgroundColor = "DodgerBlue";
+            }
+            else {
+                uploadStatus.innerHTML = `Uploaded ${Math.round(percent)}%`;
+                bar.style.width = `${percent}%`;
+            }
+        }
+
+        function errorHandler(event){
+            document.getElementById("upbar-inner").style.backgroundColor = "red";
+            document.getElementById("upbar-text").innerHTML = "Error"
+            document.getElementById("file-upload-label").style.display = "inline-block"
+        }
+
+        function abortHandler(event){
+            document.getElementById("upbar-inner").style.backgroundColor = "red";
+            document.getElementById("upbar-text").innerHTML = "Aborted"
+            document.getElementById("file-upload-label").style.display = "inline-block"
+        }
+
+        function completeHandler(event){
+            document.getElementById("upbar-inner").style.backgroundColor = "green";
+            document.getElementById("upbar-text").innerHTML = "Done"
+            document.getElementById("file-upload-label").style.display = "inline-block"
+        }
 
         window.onload = init
     </script>
@@ -186,6 +327,26 @@
             <div id="edit-pages" style="position: relative; top: 0px; left: 0px; width: 100rem; height: 30px; background-color: blue;">
 
             </div>
+            <div id="edit-page" style="position: relative; top: 0px; left: 0px; width: 100rem; height: 40px; background-color: green; display: flex;">
+
+            </div>
+            <div id="edit-functions" style="position: relative; top: 0px; left: 0px; width: 100rem; height: 40px; background-color: orange; display: flex;">
+                <label id="file-upload-label" for="file-upload" class="custom-file-upload">
+                    Upload Media/Font
+                </label>
+                <input id="file-upload" type="file" name="upload" onchange="uploadFile();"/>
+                <div id="upbar-outer" style="height: 30px; width: 100px; background-color: white; position: relative;">
+                    <div id="upbar-inner" style="height: 30px; width: 0%; background-color: green;"></div>
+                    <div id="upbar-text" style="position: absolute; top: 0px; left: 0px; z-index: 1;"></div>
+                </div>
+                <button onclick="saveEdit()">
+                    Save Changes
+                </button>
+                <button>
+                    Exit Edit Mode
+                </button>
+            </div>
+            
             <!-- <button onclick="saveEdit()">Save</button>
             <form action="/editapi/upload" method="POST" enctype="multipart/form-data">
                 <input type="file" name="upload">
