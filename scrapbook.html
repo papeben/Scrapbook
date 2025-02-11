@@ -3,6 +3,9 @@
     <head>
         <title>{{ .Title }}</title>
     </head>
+    <style>
+
+    </style>
     <script>
         var Sitemap
         var editMode = false
@@ -10,9 +13,15 @@
 
         async function init(){
             var res = await fetch(`/sitemap.json`)
-            Sitemap = await res.json()
-            console.log(Sitemap)
-            renderPage()
+            if (res.status === 200) {
+                Sitemap = await res.json()
+                console.log(Sitemap)
+                renderPage()
+                createPageButtons()
+            } else {
+                alert("Error fetching site data.")
+            }
+
         }
 
         function renderPage(){
@@ -28,7 +37,6 @@
         }
 
         function renderElement(element){
-            console.log(element.ID)
             let newDOMElement 
             if (element.IsLink) {
                 newDOMElement = document.createElement("a")
@@ -67,36 +75,26 @@
                 if (element.Children.length == 0){
                     newDOMElement.contentEditable = true
                 }
-                
                 newDOMElement.addEventListener('keypress', function(event) {
                     if (event.keyCode == 13 && event.shiftKey == false) { // enter keycode is 13
                     event.preventDefault(); 
                     document.execCommand("insertLineBreak");    
                     } 
                 });
-
                 newDOMElement.addEventListener("click", function(e){
                     editTargetDiv = element
                     e.stopPropagation()
                 })
-
                 newDOMElement.addEventListener("input", function(e){
                     editTargetDiv.Content = document.getElementById(editTargetDiv.ID).innerText
                     e.stopPropagation()
-                })
-                
-                
-                
+                })                
             }
-            
-            
             
             for (var i = 0; i < element.Children.length; i++){
                 newDOMElement.appendChild(renderElement(element.Children[i]))
             }
-
             return newDOMElement
-
         }
 
         async function enableEdit(password){
@@ -112,7 +110,6 @@
         }
 
         async function saveEdit(url, data) {
-            // Create a request options object
             const options = {
                 method: 'POST', // HTTP method
                 headers: {
@@ -120,8 +117,6 @@
                 },
                 body: JSON.stringify(Sitemap), // Convert the data object to a JSON string
             };
-
-            // Use fetch to send the request
             var res = await fetch("/editapi/save", options)
             if (res.ok) {
                 console.log("Changes saved.")
@@ -131,6 +126,55 @@
             }
         }
 
+        function createPageButtons(){
+            var frame = document.getElementById("edit-pages")
+            frame.innerHTML = ""
+            let n = document.createElement("button")
+            n.innerHTML = "+ New Page"
+            n.onclick = createNewPage
+            frame.appendChild(n)
+            for (var i = 0; i < Sitemap.Pages.length; i++){
+                let b = document.createElement("button")
+                b.innerHTML = Sitemap.Pages[i].Header.URI
+                let title = Sitemap.Pages[i].Header.Title
+                let uri = Sitemap.Pages[i].Header.URI
+                b.addEventListener("click", (e)=>{
+                    window.history.pushState("Test", title, uri);
+                    renderPage()
+                })
+                frame.appendChild(b)
+            }
+        }
+
+        function createNewPage(){
+            let i = 0;
+            while (i < 100) {
+                valid = true
+                for (var j = 0; j < Sitemap.Pages.length; j++){
+                    if (Sitemap.Pages[j].Header.URI == `/newpage${i}`) {
+                        valid = false
+                    }
+                }
+                if (valid) {
+                    break
+                }
+                i++
+            }
+            Sitemap.Pages.push({
+                Header: {
+                    Description: "Default Description",
+                    HasPreviewImage: false,
+                    PreviewImage: "",
+                    Title: "New Page",
+                    URI: `/newpage${i}`,
+                },
+                Elements: []
+            })
+            createPageButtons()
+        }
+
+
+
         window.onload = init
     </script>
     <body>
@@ -138,11 +182,15 @@
 
         </div>
         <div id="edit-frame" style="position: fixed; top: calc(100vh - 100px); left: 0px; height: 100px; width: 100rem; background-color: brown;">
-            <button onclick="saveEdit()">Save</button>
+
+            <div id="edit-pages" style="position: relative; top: 0px; left: 0px; width: 100rem; height: 30px; background-color: blue;">
+
+            </div>
+            <!-- <button onclick="saveEdit()">Save</button>
             <form action="/editapi/upload" method="POST" enctype="multipart/form-data">
                 <input type="file" name="upload">
                 <input type="submit">
-            </form>
+            </form> -->
         </div>
     </body>
     </html>

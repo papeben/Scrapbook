@@ -87,7 +87,7 @@ func dbConnect(n int) error {
 		return err
 	}
 
-	_, err = db.Exec("INSERT INTO scrapbook_data.elements(element_id, parent_type, parent_id, sequence_number, element_name, style_id, pos_anchor, pos_x, pos_y, pos_z, width, height, is_link, link_url, content) VALUES('AAAAAAAA', 'page', '/', 0, 'Default Element', 'AAAAAAAA', 'none', '0', '0', '0', '200', '200', 0, '', 'Hello world')")
+	_, err = db.Exec("INSERT INTO scrapbook_data.elements(element_id, parent_type, parent_id, sequence_number, element_name, style_id, pos_anchor, pos_x, pos_y, pos_z, width, height, is_link, link_url, content) VALUES('AAAAAAAA', 'page', '/', 0, 'Default Element', 'AAAAAAAA', 'none', '0', '0', '0', '50', '50', 0, '', 'Hello world')")
 	if err != nil {
 		return err
 	}
