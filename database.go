@@ -46,7 +46,7 @@ func dbConnect(n int) error {
 		return err
 	}
 
-	_, err = db.Exec("CREATE TABLE IF NOT EXISTS scrapbook_data.elements (element_id VARCHAR(8) NOT NULL PRIMARY KEY, parent_type VARCHAR(8) NOT NULL DEFAULT 'page', parent_id VARCHAR(128) NULL, sequence_number INT NOT NULL DEFAULT '1', element_name VARCHAR(128) NOT NULL DEFAULT 'New Element',  style_id VARCHAR(8) NOT NULL DEFAULT 'DEFAULTS', pos_anchor VARCHAR(16) NULL, pos_x REAL NOT NULL DEFAULT '0', pos_y REAL NOT NULL DEFAULT '0', pos_z INT NOT NULL DEFAULT '0', width TEXT NOT NULL DEFAULT '100px', height TEXT NOT NULL DEFAULT '100px', is_link SMALLINT NOT NULL DEFAULT '0' , link_url VARCHAR(128) NULL, content_type VARCHAR(16) NOT NULL DEFAULT 'text', content TEXT NULL)")
+	_, err = db.Exec("CREATE TABLE IF NOT EXISTS scrapbook_data.elements (element_id VARCHAR(8) NOT NULL PRIMARY KEY, parent_type VARCHAR(8) NOT NULL DEFAULT 'page', parent_id VARCHAR(128) NULL, sequence_number INT NOT NULL DEFAULT '1', element_name VARCHAR(128) NOT NULL DEFAULT 'New Element',  style_id VARCHAR(8) NOT NULL DEFAULT 'DEFAULTS', pos_anchor VARCHAR(16) NULL, pos_x TEXT NOT NULL DEFAULT '0px', pos_y TEXT NOT NULL DEFAULT '0px', pos_z INT NOT NULL DEFAULT '0', width TEXT NOT NULL DEFAULT '100px', height TEXT NOT NULL DEFAULT '100px', is_link SMALLINT NOT NULL DEFAULT '0' , link_url VARCHAR(128) NULL, content_type VARCHAR(16) NOT NULL DEFAULT 'text', content TEXT NULL)")
 	if err != nil {
 		return err
 	}

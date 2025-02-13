@@ -39,8 +39,8 @@ type scrapbookElement struct {
 	Name        string
 	StyleID     string
 	PosAnchor   string
-	PosX        float32
-	PosY        float32
+	PosX        string
+	PosY        string
 	PosZ        int
 	Width       string
 	Height      string
@@ -212,8 +212,8 @@ func getNestedElements(parentType string, parentId string) []scrapbookElement {
 		element_name string
 		style_id     string
 		pos_anchor   string
-		pos_x        float32
-		pos_y        float32
+		pos_x        string
+		pos_y        string
 		pos_z        int
 		width        string
 		height       string
