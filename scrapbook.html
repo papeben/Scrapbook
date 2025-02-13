@@ -28,6 +28,17 @@
             left: 0px;
             height: 20px;
         }
+        .edit-button {
+            position: absolute;
+            top: 0px;
+            right: 0px;
+            height: 20px;
+        }
+        .edit-menu {
+            position: absolute;
+            top: 0px;
+            left: 50px;
+        }
         .select-type {
             position: absolute;
             top: 50%;
@@ -82,7 +93,6 @@
                 newDOMElement = document.createElement("div")
             }
             
-            newDOMElement.innerHTML = element.Content
             newDOMElement.style.height = `${element.Height}`
             newDOMElement.style.width = `${element.Width}`
             newDOMElement.id = element.ID
@@ -106,27 +116,29 @@
                     break
                 }
             }
-
-            // Chrome default behaviour fix
-            newDOMElement.addEventListener('keypress', function(event) {
-                if (event.keyCode == 13 && event.shiftKey == false) { // enter keycode is 13
-                event.preventDefault(); 
-                document.execCommand("insertLineBreak");    
-                } 
-            });
-            newDOMElement.addEventListener("click", function(e){
-                editTargetDiv = element
-                e.stopPropagation()
-            })
-            newDOMElement.addEventListener("input", function(e){
-                if (e.inputType == "insertText"){
-                    editTargetDiv.Content = document.getElementById(editTargetDiv.ID).innerText
-                }
-                e.stopPropagation()
-            })
             
             if (element.ContentType == "text"){
-                newDOMElement.contentEditable = true
+                var editBox = document.createElement("textarea")
+                editBox.classList.add("internal-media")
+                editBox.value = element.Content
+                editBox.onchange = function(){
+                    element.Content = editBox.value
+                }
+                newDOMElement.appendChild(editBox)
+                newDOMElement.appendChild(createElementEditButton(element))
+            }
+            else if (element.ContentType == "image"){
+                var image = document.createElement("img")
+                image.classList.add("internal-media")
+                image.src = `/media/${element.Content}`
+                newDOMElement.appendChild(image)
+            }
+            else if (element.ContentType == "video"){
+                var video = document.createElement("video")
+                video.classList.add("internal-media")
+                video.controls = true
+
+                newDOMElement.appendChild(video)
             }
             else if (element.ContentType == ""){
                 typeSelect = document.createElement("select")
@@ -148,7 +160,7 @@
             
             // Add box buttons
             let above = document.createElement("button")
-            above.innerHTML = "Add Box Above"
+            above.innerHTML = "+^"
             above.classList.add("add-above")
             above.onclick = function(){
                 let parentList = getElementListByID(element.ID)
@@ -159,7 +171,7 @@
             newDOMElement.appendChild(above)
 
             let below = document.createElement("button")
-            below.innerHTML = "Add Box Below"
+            below.innerHTML = "+v"
             below.classList.add("add-below")
             below.onclick = function(){
                 let parentList = getElementListByID(element.ID)
@@ -173,6 +185,86 @@
                 newDOMElement.appendChild(renderElement(element.Children[i]))
             }
             return newDOMElement
+        }
+
+        function createElementEditButton(element){
+            var editButton = document.createElement("button")
+            editButton.innerHTML = "Edit"
+            editButton.classList.add("edit-button")
+
+            editMenu = document.createElement("div")
+            editMenu.classList.add("edit-menu")
+            editButton.appendChild(editMenu)
+
+            let textFields = ["Name", "Width", "Height"]
+            for (var i = 0; i < textFields.length; i++) {        
+                editMenu.appendChild(createEditTextInput(element, textFields[i]))
+            }
+
+            editMenu.appendChild(createEditBoolInput(element, "IsLink"))
+            editMenu.appendChild(createEditTextInput(element, "LinkURL"))
+
+            editMenu.appendChild(createEditSelectInput(element, "PosAnchor", ["none", "absolute"]))
+            textFields = ["PosX", "PosY", "PosZ"]
+            for (var i = 0; i < textFields.length; i++) {        
+                editMenu.appendChild(createEditTextInput(element, textFields[i]))
+            }
+
+            return editButton
+        }
+
+        function createEditTextInput(element, field){
+            let frame = document.createElement("div")
+            frame.innerHTML += `${field}`
+            let input = document.createElement("input")
+            input.type = "text"
+            input.value = element[field]
+            frame.appendChild(input)
+            tieElementValues(element, field, input)
+            return frame
+        }
+
+        function createEditBoolInput(element, field){
+            let frame = document.createElement("div")
+            frame.innerHTML += `${field}`
+            let input = document.createElement("input")
+            input.type = "checkbox"
+            frame.appendChild(input)
+            tieElementValues(element, field, input)
+            return frame
+        }
+
+        function createEditSelectInput(element, field, options){
+            let frame = document.createElement("div")
+            frame.innerHTML += `${field}`
+            let select = document.createElement("select")
+            for (let i = 0; i < options.length; i++){
+                let option = document.createElement("option")
+                option.innerHTML = options[i]
+                option.value = options[i]
+                select.appendChild(option)
+            }
+            tieElementValues(element, field, select)
+            frame.appendChild(select)
+            return frame
+        }
+
+        function tieElementValues(element, field, input){
+            if (input.type == "checkbox"){
+                input.onchange = function(){
+                    if (input.value == "on"){
+                        element[field] = true
+                    }
+                    else {
+                        element[field] = false
+                    }
+                }
+            }
+            else {
+                input.onchange = function(){
+                    element[field] = input.value
+                }
+            }
         }
 
         async function enableEdit(password){
