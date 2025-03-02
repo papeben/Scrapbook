@@ -149,7 +149,12 @@
             else if (element.ContentType == "image"){
                 var image = document.createElement("img")
                 image.classList.add("internal-media")
-                image.src = `/media/${element.Content}`
+                for (let j = 0; j < Sitemap.Media.length; j++){
+                    if (Sitemap.Media[j].MediaID == element.Content){
+                        image.src = `/media/${Sitemap.Media[j].MediaVersions[0].VID}.jpg`
+                    }
+                }
+
                 newDOMElement.appendChild(image)
             }
             else if (element.ContentType == "video"){
@@ -255,7 +260,14 @@
             }
 
             // Element type select
-            let selectContentType = createEditSelectInput(element, "ContentType", ["boxes", "text", "image", "video", ""])
+            let selectContentFields = [
+                {"Name": "Boxes", "Value": "boxes"},
+                {"Name": "Text", "Value": "text"},
+                {"Name": "Image", "Value": "image"},
+                {"Name": "Video", "Value": "video"},
+                {"Name": "None", "Value": ""},
+            ]
+            let selectContentType = createEditSelectInput(element, "ContentType", selectContentFields)
             selectContentType.oninput = function(){
                 spawnEditMenu(element, targetPositionX, targetPositionY)
             }
@@ -269,6 +281,19 @@
             }
 
             // Image
+            if (element.ContentType == "image"){
+                let options = [{"Name": "None", "Value": ""}]
+                for (let i = 0; i < Sitemap.Media.length; i++){
+                    console.log(Sitemap.Media[i])
+                    if (Sitemap.Media[i].MediaType == "image"){
+                        options.push({"Name": Sitemap.Media[i].MediaName, "Value": Sitemap.Media[i].MediaID})
+                    }
+                    
+                }
+                let selectContent = createEditSelectInput(element, "Content", options)
+                editMenu.appendChild(selectContent)
+            }
+
         
 
             // Video
@@ -348,8 +373,8 @@
             let select = document.createElement("select")
             for (let i = 0; i < options.length; i++){
                 let option = document.createElement("option")
-                option.innerHTML = options[i]
-                option.value = options[i]
+                option.innerHTML = options[i].Name
+                option.value = options[i].Value
                 select.appendChild(option)
             }
             tieElementValues(element, field, select)
