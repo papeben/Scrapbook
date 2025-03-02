@@ -70,6 +70,19 @@
 
         }
 
+        async function updateMediaList(){
+            var res = await fetch(`/sitemap.json`)
+            if (res.status === 200) {
+                let oldSitemap = await res.json()
+                Sitemap.Media = oldSitemap.Media
+                console.log(Sitemap)
+                renderPage()
+                createPageButtons()
+            } else {
+                alert("Error fetching site data.")
+            }
+        }
+
         function renderPage(){
             document.getElementById("page-frame").innerHTML = ""
             for (let i = 0; i < Sitemap.Pages.length; i++){
@@ -630,6 +643,7 @@
             document.getElementById("upbar-inner").style.backgroundColor = "green";
             document.getElementById("upbar-text").innerHTML = "Done"
             document.getElementById("file-upload-label").style.display = "inline-block"
+            updateMediaList()
         }
 
         function createDefaultElement(){
