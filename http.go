@@ -283,7 +283,7 @@ func updateFromSitemap(sitemap scrapbookSitemap) error {
 func updateFromElement(element scrapbookElement, parentType string, parentID string, sequenceNumber int) error {
 	logMessage(5, fmt.Sprintf("Processing element %s", element.ID))
 	logMessage(5, element.Content)
-	_, err := db.Exec("INSERT INTO scrapbook_data.elements(element_id, parent_type, parent_id, sequence_number, style_id, width, height, is_link, link_url, content_type, content, direction, wrap, justify) VALUES ($1, $2, $3 ,$4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)", element.ID, parentType, parentID, sequenceNumber, element.StyleID, element.Width, element.Height, parseBoolToInt(element.IsLink), element.LinkURL, element.ContentType, element.Content, element.Direction, element.Wrap, element.Justify)
+	_, err := db.Exec("INSERT INTO scrapbook_data.elements(element_id, parent_type, parent_id, sequence_number, style_id, width, height, is_link, link_url, content_type, content, direction, wrap, justify) VALUES ($1, $2, $3 ,$4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)", element.ID, parentType, parentID, sequenceNumber, element.StyleID, element.Width, element.Height, parseBoolToInt(element.IsLink), element.LinkURL, element.ContentType, element.Content, element.Direction, element.Wrap, element.Justify)
 	if err != nil {
 		logMessage(2, err.Error())
 		return err
