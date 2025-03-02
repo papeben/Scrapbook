@@ -151,7 +151,7 @@
                 image.classList.add("internal-media")
                 for (let j = 0; j < Sitemap.Media.length; j++){
                     if (Sitemap.Media[j].MediaID == element.Content){
-                        image.src = `/media/${Sitemap.Media[j].MediaVersions[0].VID}.jpg`
+                        image.src = `/media/${Sitemap.Media[j].MediaVersions[0].VID}.jpg` // first version should be the lowest resolution
                     }
                 }
 
@@ -161,6 +161,15 @@
                 var video = document.createElement("video")
                 video.classList.add("internal-media")
                 video.controls = true
+
+                for (let j = 0; j < Sitemap.Media.length; j++){
+                    if (Sitemap.Media[j].MediaID == element.Content){
+                        let source = document.createElement("source")
+                        source.type = "video/webm"
+                        source.src = `/media/${Sitemap.Media[j].MediaVersions[0].VID}.webm` // first version should be the lowest resolution
+                        video.appendChild(source)
+                    }
+                }
 
                 newDOMElement.appendChild(video)
             }
@@ -288,7 +297,6 @@
                     if (Sitemap.Media[i].MediaType == "image"){
                         options.push({"Name": Sitemap.Media[i].MediaName, "Value": Sitemap.Media[i].MediaID})
                     }
-                    
                 }
                 let selectContent = createEditSelectInput(element, "Content", options)
                 editMenu.appendChild(selectContent)
@@ -297,6 +305,17 @@
         
 
             // Video
+            if (element.ContentType == "video"){
+                let options = [{"Name": "None", "Value": ""}]
+                for (let i = 0; i < Sitemap.Media.length; i++){
+                    console.log(Sitemap.Media[i])
+                    if (Sitemap.Media[i].MediaType == "video"){
+                        options.push({"Name": Sitemap.Media[i].MediaName, "Value": Sitemap.Media[i].MediaID})
+                    }
+                }
+                let selectContent = createEditSelectInput(element, "Content", options)
+                editMenu.appendChild(selectContent)
+            }
 
             // Link
 
