@@ -32,10 +32,12 @@
             position: absolute;
             height: 20px;
         }
-        .edit-menu {
+        #edit-menu {
             position: absolute;
             width: 200px;
             z-index: 100;
+            background-color: gray;
+            border: 1px solid black;
         }
         .select-type {
             position: absolute;
@@ -223,13 +225,39 @@
 
         function spawnEditMenu(element, targetPositionX, targetPositionY){
             renderPage()
+            closeEditMenu()
+            
+            editMenu = document.createElement("div")
+            editMenu.id = "edit-menu"
+            
             // Close button
 
+            // Height/Width
+            let textFields = [
+                {"ElementField": "Width", "Title": "Box Width"}, 
+                {"ElementField": "Height", "Title": "Box Height"}
+            ]
+            for (var i = 0; i < textFields.length; i++) {        
+                editMenu.appendChild(createEditTextInput(element, textFields[i].ElementField, textFields[i].Title))
+            }
+
             // Element type select
+            let selectContentType = createEditSelectInput(element, "ContentType", ["boxes", "text", "image", "video", ""])
+            selectContentType.oninput = function(){
+                spawnEditMenu(element, targetPositionX, targetPositionY)
+            }
+            editMenu.appendChild(selectContentType)
 
             // Media edit/select
             // Text
+            if (element.ContentType == "text"){
+                let inputTextArea = createEditTextAreaInput(element, "Content", "Edit Text")
+                editMenu.appendChild(inputTextArea)
+            }
+
             // Image
+        
+
             // Video
 
             // Link
@@ -245,32 +273,46 @@
                      
             
 
-            editMenu = document.createElement("div")
-            editMenu.classList.add("edit-menu")
+            
 
-            let textFields = ["Name", "Width", "Height"]
-            for (var i = 0; i < textFields.length; i++) {        
-                editMenu.appendChild(createEditTextInput(element, textFields[i]))
-            }
+            
 
-            editMenu.appendChild(createEditBoolInput(element, "IsLink"))
-            editMenu.appendChild(createEditTextInput(element, "LinkURL"))
+            // editMenu.appendChild(createEditBoolInput(element, "IsLink"))
+            // editMenu.appendChild(createEditTextInput(element, "LinkURL"))
 
-            editMenu.appendChild(createEditSelectInput(element, "PosAnchor", ["none", "absolute"]))
-            textFields = ["PosX", "PosY", "PosZ"]
-            for (var i = 0; i < textFields.length; i++) {        
-                editMenu.appendChild(createEditTextInput(element, textFields[i]))
-            }
+            // editMenu.appendChild(createEditSelectInput(element, "PosAnchor", ["none", "absolute"]))
+            // textFields = ["PosX", "PosY", "PosZ"]
+            // for (var i = 0; i < textFields.length; i++) {        
+            //     editMenu.appendChild(createEditTextInput(element, textFields[i]))
+            // }
+
             editMenu.style.left = `${targetPositionX}px`
             editMenu.style.top = `${targetPositionY}px`
-            document.getElementById("page-frame").appendChild(editMenu)
+            document.getElementsByTagName("body")[0].appendChild(editMenu)
         }
 
-        function createEditTextInput(element, field){
+        function closeEditMenu(){
+            if (document.getElementById("edit-menu")) {
+                document.getElementById("edit-menu").remove()
+            }
+            
+        }
+
+        function createEditTextInput(element, field, title){
             let frame = document.createElement("div")
-            frame.innerHTML += `${field}`
+            frame.innerHTML += `${title}`
             let input = document.createElement("input")
             input.type = "text"
+            input.value = element[field]
+            frame.appendChild(input)
+            tieElementValues(element, field, input)
+            return frame
+        }
+
+        function createEditTextAreaInput(element, field, title){
+            let frame = document.createElement("div")
+            frame.innerHTML += `${title}`
+            let input = document.createElement("textarea")
             input.value = element[field]
             frame.appendChild(input)
             tieElementValues(element, field, input)
@@ -299,23 +341,26 @@
             }
             tieElementValues(element, field, select)
             frame.appendChild(select)
+            select.value = element[field]
             return frame
         }
 
         function tieElementValues(element, field, input){
             if (input.type == "checkbox"){
-                input.onchange = function(){
+                input.oninput = function(){
                     if (input.value == "on"){
                         element[field] = true
                     }
                     else {
                         element[field] = false
                     }
+                    renderPage()
                 }
             }
             else {
-                input.onchange = function(){
+                input.oninput = function(){
                     element[field] = input.value
+                    renderPage()
                 }
             }
         }
