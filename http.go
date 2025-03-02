@@ -36,18 +36,16 @@ type scrapbookPage struct {
 
 type scrapbookElement struct {
 	ID          string
-	Name        string
 	StyleID     string
-	PosAnchor   string
-	PosX        string
-	PosY        string
-	PosZ        int
 	Width       string
 	Height      string
 	IsLink      bool
 	LinkURL     string
 	ContentType string
 	Content     string
+	Direction   string
+	Wrap        string
+	Justify     string
 	Children    []scrapbookElement
 }
 
@@ -201,7 +199,7 @@ func createFontID() (string, error) {
 }
 
 func getNestedElements(parentType string, parentId string) []scrapbookElement {
-	elementRows, err := db.Query("SELECT element_id, element_name, style_id, pos_anchor, pos_x, pos_y, pos_z, width, height, is_link, link_url, content_type, content FROM scrapbook_data.elements WHERE parent_type = $1 AND parent_id = $2 ORDER BY sequence_number ASC", parentType, parentId)
+	elementRows, err := db.Query("SELECT element_id, style_id, width, height, is_link, link_url, content_type, content, direction, wrap, justify FROM scrapbook_data.elements WHERE parent_type = $1 AND parent_id = $2 ORDER BY sequence_number ASC", parentType, parentId)
 	if err != nil {
 		logMessage(2, err.Error())
 	}
@@ -209,36 +207,32 @@ func getNestedElements(parentType string, parentId string) []scrapbookElement {
 	var (
 		elements     []scrapbookElement = []scrapbookElement{}
 		element_id   string
-		element_name string
 		style_id     string
-		pos_anchor   string
-		pos_x        string
-		pos_y        string
-		pos_z        int
 		width        string
 		height       string
 		is_link      bool
 		link_url     string
 		content_type string
 		content      string
+		direction    string
+		wrap         string
+		justify      string
 	)
 
 	for elementRows.Next() {
-		elementRows.Scan(&element_id, &element_name, &style_id, &pos_anchor, &pos_x, &pos_y, &pos_z, &width, &height, &is_link, &link_url, &content_type, &content)
+		elementRows.Scan(&element_id, &style_id, &width, &height, &is_link, &link_url, &content_type, &content, &direction, &wrap, &justify)
 		elements = append(elements, scrapbookElement{
 			element_id,
-			element_name,
 			style_id,
-			pos_anchor,
-			pos_x,
-			pos_y,
-			pos_z,
 			width,
 			height,
 			is_link,
 			link_url,
 			content_type,
 			content,
+			direction,
+			wrap,
+			justify,
 			getNestedElements("element", element_id),
 		})
 	}
@@ -287,9 +281,9 @@ func updateFromSitemap(sitemap scrapbookSitemap) error {
 }
 
 func updateFromElement(element scrapbookElement, parentType string, parentID string, sequenceNumber int) error {
-	logMessage(5, fmt.Sprintf("Processing element %s: %s", element.ID, element.Name))
+	logMessage(5, fmt.Sprintf("Processing element %s", element.ID))
 	logMessage(5, element.Content)
-	_, err := db.Exec("INSERT INTO scrapbook_data.elements(element_id, parent_type, parent_id, sequence_number, element_name, style_id, pos_anchor, pos_x, pos_y, pos_z, width, height, is_link, link_url, content_type, content) VALUES ($1, $2, $3 ,$4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)", element.ID, parentType, parentID, sequenceNumber, element.Name, element.StyleID, element.PosAnchor, element.PosX, element.PosY, element.PosZ, element.Width, element.Height, parseBoolToInt(element.IsLink), element.LinkURL, element.ContentType, element.Content)
+	_, err := db.Exec("INSERT INTO scrapbook_data.elements(element_id, parent_type, parent_id, sequence_number, style_id, width, height, is_link, link_url, content_type, content, direction, wrap, justify) VALUES ($1, $2, $3 ,$4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)", element.ID, parentType, parentID, sequenceNumber, element.StyleID, element.Width, element.Height, parseBoolToInt(element.IsLink), element.LinkURL, element.ContentType, element.Content, element.Direction, element.Wrap, element.Justify)
 	if err != nil {
 		logMessage(2, err.Error())
 		return err

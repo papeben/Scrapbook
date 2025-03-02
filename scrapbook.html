@@ -34,6 +34,8 @@
         }
         .edit-menu {
             position: absolute;
+            width: 200px;
+            z-index: 100;
         }
         .select-type {
             position: absolute;
@@ -206,16 +208,43 @@
                 editButton.style.top = `${targetPositionY}px`
             }
 
-            for (var i = 0; i < element.Children.length; i++){
-                createElementEditButtons(element.Children[i])
+            editButton.onclick = function () {
+                spawnEditMenu(element, targetPositionX, targetPositionY)
+                editButton.style.display = "none"
             }
 
             document.getElementById("page-frame").appendChild(editButton)
 
-            return editButton
+            // Create edit buttons for sub-elements
+            for (var i = 0; i < element.Children.length; i++){
+                createElementEditButtons(element.Children[i])
+            }
         }
 
-        function spawnEditMenu(elementID){
+        function spawnEditMenu(element, targetPositionX, targetPositionY){
+            renderPage()
+            // Close button
+
+            // Element type select
+
+            // Media edit/select
+            // Text
+            // Image
+            // Video
+
+            // Link
+
+            // Style select
+
+            // Horizontal/Vertical
+            // Wrap/NoWrap
+            // Justify Content
+
+            // Position Anchor
+            
+                     
+            
+
             editMenu = document.createElement("div")
             editMenu.classList.add("edit-menu")
 
@@ -232,6 +261,9 @@
             for (var i = 0; i < textFields.length; i++) {        
                 editMenu.appendChild(createEditTextInput(element, textFields[i]))
             }
+            editMenu.style.left = `${targetPositionX}px`
+            editMenu.style.top = `${targetPositionY}px`
+            document.getElementById("page-frame").appendChild(editMenu)
         }
 
         function createEditTextInput(element, field){
@@ -566,8 +598,8 @@
                 IsLink: false,
                 Name: "New Box",
                 PosAnchor: "none",
-                PosX: 0,
-                PosY: 0,
+                PosX: "0",
+                PosY: "0",
                 PosZ: 0,
                 StyleID: "BBBBBBBB"
             }

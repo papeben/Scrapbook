@@ -46,7 +46,7 @@ func dbConnect(n int) error {
 		return err
 	}
 
-	_, err = db.Exec("CREATE TABLE IF NOT EXISTS scrapbook_data.elements (element_id VARCHAR(8) NOT NULL PRIMARY KEY, parent_type VARCHAR(8) NOT NULL DEFAULT 'page', parent_id VARCHAR(128) NULL, sequence_number INT NOT NULL DEFAULT '1', element_name VARCHAR(128) NOT NULL DEFAULT 'New Element',  style_id VARCHAR(8) NOT NULL DEFAULT 'DEFAULTS', pos_anchor VARCHAR(16) NULL, pos_x TEXT NOT NULL DEFAULT '0px', pos_y TEXT NOT NULL DEFAULT '0px', pos_z INT NOT NULL DEFAULT '0', width TEXT NOT NULL DEFAULT '100px', height TEXT NOT NULL DEFAULT '100px', is_link SMALLINT NOT NULL DEFAULT '0' , link_url VARCHAR(128) NULL, content_type VARCHAR(16) NOT NULL DEFAULT 'text', content TEXT NULL)")
+	_, err = db.Exec("CREATE TABLE IF NOT EXISTS scrapbook_data.elements (element_id VARCHAR(8) NOT NULL PRIMARY KEY, parent_type VARCHAR(8) NOT NULL DEFAULT 'page', parent_id VARCHAR(128) NULL, sequence_number INT NOT NULL DEFAULT '1', style_id VARCHAR(8) NOT NULL DEFAULT 'DEFAULTS', width TEXT NOT NULL DEFAULT '100px', height TEXT NOT NULL DEFAULT '100px', is_link SMALLINT NOT NULL DEFAULT '0' , link_url VARCHAR(128) NULL, content_type VARCHAR(16) NOT NULL DEFAULT 'text', content TEXT NULL, direction TEXT NOT NULL DEFAULT 'row', wrap TEXT NOT NULL DEFAULT 'nowrap', justify TEXT NOT NULL DEFAULT 'flex-start')")
 	if err != nil {
 		return err
 	}
@@ -87,12 +87,12 @@ func dbConnect(n int) error {
 		return err
 	}
 
-	_, err = db.Exec("INSERT INTO scrapbook_data.elements(element_id, parent_type, parent_id, sequence_number, element_name, style_id, pos_anchor, pos_x, pos_y, pos_z, width, height, is_link, link_url, content_type, content) VALUES('AAAAAAAA', 'page', '/', 0, 'Default Element', 'AAAAAAAA', 'none', '0', '0', '0', '450px', '450px', 0, '', 'boxes', '')")
+	_, err = db.Exec("INSERT INTO scrapbook_data.elements(element_id, parent_type, parent_id, sequence_number, style_id, width, height, is_link, link_url, content_type, content) VALUES('AAAAAAAA', 'page', '/', 0, 'AAAAAAAA', '450px', '450px', 0, '', 'boxes', '')")
 	if err != nil {
 		return err
 	}
 
-	_, err = db.Exec("INSERT INTO scrapbook_data.elements(element_id, parent_type, parent_id, sequence_number, element_name, style_id, pos_anchor, pos_x, pos_y, pos_z, width, height, is_link, link_url, content) VALUES('BBBBBBBB', 'element', 'AAAAAAAA', 0, 'Default Nested Element', 'BBBBBBBB', 'none', '0', '0', '0', '200px', '200px', 0, '', 'Hello parent!')")
+	_, err = db.Exec("INSERT INTO scrapbook_data.elements(element_id, parent_type, parent_id, sequence_number, style_id, width, height, is_link, link_url, content) VALUES('BBBBBBBB', 'element', 'AAAAAAAA', 0, 'BBBBBBBB', '200px', '200px', 0, '', 'Hello parent!')")
 	if err != nil {
 		return err
 	}
