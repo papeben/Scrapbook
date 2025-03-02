@@ -30,14 +30,10 @@
         }
         .edit-button {
             position: absolute;
-            top: 0px;
-            right: 0px;
             height: 20px;
         }
         .edit-menu {
             position: absolute;
-            top: 0px;
-            left: 50px;
         }
         .select-type {
             position: absolute;
@@ -78,6 +74,19 @@
                         document.getElementById("page-frame").appendChild(renderElement(Sitemap.Pages[i].Elements[j]))
                     }
                     createPageEditors(Sitemap.Pages[i])
+                    renderEditButtons()
+                    return
+                }
+            }            
+        }
+
+        function renderEditButtons(){
+            // Create edit buttons
+            for (let i = 0; i < Sitemap.Pages.length; i++){
+                if (Sitemap.Pages[i].Header.URI == window.location.pathname) {
+                    for (let j = 0; j < Sitemap.Pages[i].Elements.length; j++){
+                        createElementEditButtons(Sitemap.Pages[i].Elements[j])
+                    }
                     return
                 }
             }
@@ -118,14 +127,7 @@
             }
             
             if (element.ContentType == "text"){
-                var editBox = document.createElement("textarea")
-                editBox.classList.add("internal-media")
-                editBox.value = element.Content
-                editBox.onchange = function(){
-                    element.Content = editBox.value
-                }
-                newDOMElement.appendChild(editBox)
-                newDOMElement.appendChild(createElementEditButton(element))
+                newDOMElement.innerHTML = element.Content
             }
             else if (element.ContentType == "image"){
                 var image = document.createElement("img")
@@ -187,14 +189,35 @@
             return newDOMElement
         }
 
-        function createElementEditButton(element){
+        function createElementEditButtons(element){
+            let targetID = element.ID
             var editButton = document.createElement("button")
             editButton.innerHTML = "Edit"
             editButton.classList.add("edit-button")
 
+            let targetPositionX = document.getElementById(targetID).getBoundingClientRect().left + document.getElementById(targetID).getBoundingClientRect().width
+            let targetPositionY = document.getElementById(targetID).getBoundingClientRect().top
+
+            if (targetPositionX > window.screen.width) {
+                editButton.style.left = document.getElementById(targetID).getBoundingClientRect().left + "px"
+                editButton.style.top = `${targetPositionY}px`
+            } else {
+                editButton.style.left = `${targetPositionX}px`
+                editButton.style.top = `${targetPositionY}px`
+            }
+
+            for (var i = 0; i < element.Children.length; i++){
+                createElementEditButtons(element.Children[i])
+            }
+
+            document.getElementById("page-frame").appendChild(editButton)
+
+            return editButton
+        }
+
+        function spawnEditMenu(elementID){
             editMenu = document.createElement("div")
             editMenu.classList.add("edit-menu")
-            editButton.appendChild(editMenu)
 
             let textFields = ["Name", "Width", "Height"]
             for (var i = 0; i < textFields.length; i++) {        
@@ -209,8 +232,6 @@
             for (var i = 0; i < textFields.length; i++) {        
                 editMenu.appendChild(createEditTextInput(element, textFields[i]))
             }
-
-            return editButton
         }
 
         function createEditTextInput(element, field){
