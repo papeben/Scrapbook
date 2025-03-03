@@ -320,12 +320,11 @@
             if (element.ContentType == "video"){
                 let options = [{"Name": "None", "Value": ""}]
                 for (let i = 0; i < Sitemap.Media.length; i++){
-                    console.log(Sitemap.Media[i])
                     if (Sitemap.Media[i].MediaType == "video"){
                         options.push({"Name": Sitemap.Media[i].MediaName, "Value": Sitemap.Media[i].MediaID})
                     }
                 }
-                let selectContent = createEditSelectInput(element, "Content", options)
+                let selectContent = createEditSelectInput(element, "Content", options, "Video File")
                 editMenu.appendChild(selectContent)
             }
 
@@ -334,6 +333,12 @@
             editMenu.appendChild(createEditTextInput(element, "LinkURL", "Link URL"))
 
             // Style select
+            let options = [{"Name": "None", "Value": ""}]
+            for (let i = 0; i < Sitemap.Styles.length; i++){
+                options.push({"Name": Sitemap.Styles[i].Name, "Value": Sitemap.Styles[i].ID})
+            }
+            let selectStyle = createEditSelectInput(element, "StyleID", options, "Element Style")
+            editMenu.appendChild(selectStyle)
 
             // Horizontal/Vertical
             // Wrap/NoWrap
@@ -400,9 +405,9 @@
             return frame
         }
 
-        function createEditSelectInput(element, field, options){
+        function createEditSelectInput(element, field, options, title){
             let frame = document.createElement("div")
-            frame.innerHTML += `${field}`
+            frame.innerHTML += `${title}`
             let select = document.createElement("select")
             for (let i = 0; i < options.length; i++){
                 let option = document.createElement("option")
