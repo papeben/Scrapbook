@@ -10,6 +10,9 @@
         div {
             position: relative;
         }
+        .div-clickable:hover {
+            cursor: pointer;
+        }
         .custom-file-upload {
             border: 1px solid #ccc;
             display: inline-block;
@@ -109,15 +112,21 @@
             }
         }
 
-        function renderElement(element){
-            let newDOMElement
+        function renderElement(element){       
+            let newDOMElement = document.createElement("div")
+            
             if (element.IsLink) {
-                newDOMElement = document.createElement("a")
-                newDOMElement.href = element.LinkURL
+                newDOMElement.addEventListener("click", function(){
+                    if (element.LinkURL[0] == "/"){
+                        switchToPage(element.LinkURL)
+                    } else {
+                        alert(`Clicking this link would take you to external page: ${element.LinkURL}`)
+                    }
+                    
+                })
+                newDOMElement.classList.add("div-clickable")
             }
-            else {
-                newDOMElement = document.createElement("div")
-            }
+
             
             newDOMElement.style.height = `${element.Height}`
             newDOMElement.style.width = `${element.Width}`
@@ -269,18 +278,21 @@
             }
 
             // Element type select
-            let selectContentFields = [
-                {"Name": "Boxes", "Value": "boxes"},
-                {"Name": "Text", "Value": "text"},
-                {"Name": "Image", "Value": "image"},
-                {"Name": "Video", "Value": "video"},
-                {"Name": "None", "Value": ""},
-            ]
-            let selectContentType = createEditSelectInput(element, "ContentType", selectContentFields)
-            selectContentType.oninput = function(){
-                spawnEditMenu(element, targetPositionX, targetPositionY)
+            if (element.Children.length == 0){
+                let selectContentFields = [
+                    {"Name": "Boxes", "Value": "boxes"},
+                    {"Name": "Text", "Value": "text"},
+                    {"Name": "Image", "Value": "image"},
+                    {"Name": "Video", "Value": "video"},
+                    {"Name": "None", "Value": ""},
+                ]
+                let selectContentType = createEditSelectInput(element, "ContentType", selectContentFields)
+                selectContentType.oninput = function(){
+                    spawnEditMenu(element, targetPositionX, targetPositionY)
+                }
+                editMenu.appendChild(selectContentType)
             }
-            editMenu.appendChild(selectContentType)
+            
 
             // Media edit/select
             // Text
@@ -318,6 +330,8 @@
             }
 
             // Link
+            editMenu.appendChild(createEditBoolInput(element, "IsLink", "Enable Link"))
+            editMenu.appendChild(createEditTextInput(element, "LinkURL", "Link URL"))
 
             // Style select
 
@@ -334,8 +348,8 @@
 
             
 
-            // editMenu.appendChild(createEditBoolInput(element, "IsLink"))
-            // editMenu.appendChild(createEditTextInput(element, "LinkURL"))
+            // 
+            // 
 
             // editMenu.appendChild(createEditSelectInput(element, "PosAnchor", ["none", "absolute"]))
             // textFields = ["PosX", "PosY", "PosZ"]
@@ -404,8 +418,9 @@
 
         function tieElementValues(element, field, input){
             if (input.type == "checkbox"){
+                input.checked = element[field]
                 input.oninput = function(){
-                    if (input.value == "on"){
+                    if (input.checked){
                         element[field] = true
                     }
                     else {
@@ -463,11 +478,23 @@
                 let title = Sitemap.Pages[i].Header.Title
                 let uri = Sitemap.Pages[i].Header.URI
                 b.addEventListener("click", (e)=>{
-                    window.history.pushState("Test", title, uri);
-                    renderPage()
+                    switchToPage(uri)
                 })
                 frame.appendChild(b)
             }
+        }
+
+        function switchToPage(uri){
+            let title = "404 - Not Found"
+            for (let i = 0; i < Sitemap.Pages.length; i++){
+                if (Sitemap.Pages[i].Header.URI == uri){
+                    title = Sitemap.Pages[i].Header.Title
+                }
+            }
+            window.history.pushState("Test", title, uri);
+            document.title = title
+            renderPage()
+            
         }
 
         function createPageEditors(page){
