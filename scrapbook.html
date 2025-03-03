@@ -7,10 +7,11 @@
         input[type="file"] {
             display: none;
         }
-        div {
+        .box {
             position: relative;
+            display: flex;
         }
-        .div-clickable:hover {
+        .box-clickable:hover {
             cursor: pointer;
         }
         .custom-file-upload {
@@ -114,6 +115,10 @@
 
         function renderElement(element){       
             let newDOMElement = document.createElement("div")
+            newDOMElement.classList.add("box")
+            newDOMElement.style.flexDirection = element.Direction
+            newDOMElement.style.flexWrap = element.Wrap
+            newDOMElement.style.justifyContent = element.Justify
             
             if (element.IsLink) {
                 newDOMElement.addEventListener("click", function(){
@@ -124,7 +129,7 @@
                     }
                     
                 })
-                newDOMElement.classList.add("div-clickable")
+                newDOMElement.classList.add("box-clickable")
             }
 
             
@@ -286,7 +291,7 @@
                     {"Name": "Video", "Value": "video"},
                     {"Name": "None", "Value": ""},
                 ]
-                let selectContentType = createEditSelectInput(element, "ContentType", selectContentFields)
+                let selectContentType = createEditSelectInput(element, "ContentType", selectContentFields, "Content Type")
                 selectContentType.oninput = function(){
                     spawnEditMenu(element, targetPositionX, targetPositionY)
                 }
@@ -310,7 +315,7 @@
                         options.push({"Name": Sitemap.Media[i].MediaName, "Value": Sitemap.Media[i].MediaID})
                     }
                 }
-                let selectContent = createEditSelectInput(element, "Content", options)
+                let selectContent = createEditSelectInput(element, "Content", options, "Select Image")
                 editMenu.appendChild(selectContent)
             }
 
@@ -341,20 +346,38 @@
             editMenu.appendChild(selectStyle)
 
             // Horizontal/Vertical
+            if (element.ContentType == "boxes"){
+                options = [
+                    {"Name": "Row", "Value": "row"},
+                    {"Name": "Column", "Value": "column"},
+                    {"Name": "Row-Reverse", "Value": "row-reverse"},
+                    {"Name": "Column-Reverse", "Value": "column-reverse"},
+                ]
+                let selectDirection = createEditSelectInput(element, "Direction", options, "Row or Column")
+                editMenu.appendChild(selectDirection)
+            
             // Wrap/NoWrap
+                options = [
+                    {"Name": "Wrap", "Value": "wrap"},
+                    {"Name": "Don't Wrap", "Value": "nowrap"},
+                    {"Name": "Wrap Reverse", "Value": "wrap-reverse"},
+                ]
+                let selectWrap = createEditSelectInput(element, "Wrap", options, "Wrap")
+                editMenu.appendChild(selectWrap)
+
             // Justify Content
-
-            // Position Anchor
-            
-                     
-            
-
-            
-
-            
-
-            // 
-            // 
+            options = [
+                    {"Name": "Center", "Value": "center"},
+                    {"Name": "Start to End", "Value": "flex-start"},
+                    {"Name": "End to Start", "Value": "flex-end"},
+                    {"Name": "Space Around", "Value": "space-around"},
+                    {"Name": "Space Between", "Value": "space-between"},
+                    {"Name": "Space Evenly", "Value": "space-evenly"},
+                ]
+                let selectJustify = createEditSelectInput(element, "Justify", options, "Content Layout")
+                editMenu.appendChild(selectJustify)
+            }
+         
 
             // editMenu.appendChild(createEditSelectInput(element, "PosAnchor", ["none", "absolute"]))
             // textFields = ["PosX", "PosY", "PosZ"]
