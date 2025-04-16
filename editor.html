@@ -39,7 +39,7 @@
                 bottom: 50px;
                 left: 0px;
                 height: 300px;
-                width: 300px;
+                width: 500px;
                 background-color: #ccc;
             }
             .ed-button:hover .ed-menu-frame {
@@ -50,26 +50,147 @@
                 flex-direction: row;
                 justify-content: space-between;
                 padding: 10px 20px;
+                border-top: 1px solid #aaa;
             }
-            .ed-menu-buttons {
+            .ed-menu-options {
                 display: flex;
-                
             }
-            .ed-menu-edit {
-                height: 20px;
-                width: 20px;
-                background-color: red;
+            .ed-menu-option {
+                width: 60px;
+                height: 30px;
+                margin-left: 10px;
+                line-height: 30px;
+                border: 1px solid #aaa;
             }
-            .ed-menu-delete {
-                height: 20px;
-                width: 20px;
-                background-color: green;
+            .ed-menu-button {
+                border: 1px solid #aaa;
+            }
+            .ed-menu-cells {
+                display: block;
+
             }
         </style>
     </head>
     
     <script>
+        var Sitemap = {}
 
+        async function init(){
+            var res = await fetch(`/sitemap.json`)
+            if (res.status === 200) {
+                Sitemap = await res.json()
+                console.log(Sitemap)
+                populatePagesMenu()
+                populateMediaMenu()
+                populateStyleMenu()
+            } else {
+                alert("Error fetching site data.")
+            }
+        }
+
+        function populatePagesMenu(){
+            let outer = document.getElementById("page-cells")
+            outer.innerHTML = ""
+            for (let i = 0; i < Sitemap.Pages.length; i++){
+                outer.append(createToolbarButton(Sitemap.Pages[i].Header.URI, [{label: "edit", action: ()=>{alert(1)}}, {label: "delete", action: ()=>{alert(2)}}]))
+            }
+        }
+
+        function populateMediaMenu(){
+            let outer = document.getElementById("media-cells")
+            outer.innerHTML = ""
+            for (let i = 0; i < Sitemap.Media.length; i++){
+                outer.append(createToolbarButton(Sitemap.Media[i].MediaName, [{label: "edit", action: ()=>{alert(1)}}, {label: "delete", action: ()=>{alert(2)}}]))
+            }
+        }
+
+        function populateStyleMenu(){
+            let outer = document.getElementById("style-cells")
+            outer.innerHTML = ""
+            for (let i = 0; i < Sitemap.Styles.length; i++){
+                outer.append(createToolbarButton(Sitemap.Styles[i].Name, [{label: "edit", action: ()=>{alert(1)}}, {label: "delete", action: ()=>{alert(2)}}]))
+            }
+        }
+
+        function createToolbarButton(labelText, buttons){
+            let cell = document.createElement("div")
+            cell.classList.add("ed-menu-cell")
+            let label = document.createElement("div")
+            label.classList.add("ed-menu-label")
+            label.innerHTML = labelText
+            cell.appendChild(label)
+            let options = document.createElement("div")
+            options.classList.add("ed-menu-options")
+            cell.appendChild(options)
+            for (let i = 0; i < buttons.length; i++) {
+                let button = document.createElement("button")
+                button.classList.add("ed-menu-option")
+                button.innerHTML = buttons[i].label
+                button.onclick = buttons[i].action
+                options.appendChild(button)
+            }
+            return cell
+        }
+
+        function uploadFile() {
+            var file = document.getElementById("file-upload").files[0]
+            document.getElementById("file-upload-label").style.display = "none"
+            var formdata = new FormData();
+            formdata.append("upload", file);
+            var uploadReq = new XMLHttpRequest();
+            uploadReq.upload.addEventListener("progress", progressHandler, false);
+            uploadReq.addEventListener("load", completeHandler, false);
+            uploadReq.addEventListener("error", errorHandler, false);
+            uploadReq.addEventListener("abort", abortHandler, false);
+            uploadReq.open("POST", "/editapi/upload");
+            uploadReq.send(formdata);
+        }
+
+        function progressHandler(event) {
+            var bar = document.getElementById("upbar-inner");
+            var uploadStatus = document.getElementById("upbar-text");
+            var percent = (event.loaded / event.total) * 100;
+            if (percent == 100) {
+                uploadStatus.innerHTML = `Processing`;
+                bar.style.width = `${percent}%`;
+                bar.style.backgroundColor = "DodgerBlue";
+            }
+            else {
+                uploadStatus.innerHTML = `Uploaded ${Math.round(percent)}%`;
+                bar.style.width = `${percent}%`;
+            }
+        }
+
+        function errorHandler(event){
+            document.getElementById("upbar-inner").style.backgroundColor = "red";
+            document.getElementById("upbar-text").innerHTML = "Error"
+            document.getElementById("file-upload-label").style.display = "inline-block"
+        }
+
+        function abortHandler(event){
+            document.getElementById("upbar-inner").style.backgroundColor = "red";
+            document.getElementById("upbar-text").innerHTML = "Aborted"
+            document.getElementById("file-upload-label").style.display = "inline-block"
+        }
+
+        function completeHandler(event){
+            document.getElementById("upbar-inner").style.backgroundColor = "green";
+            document.getElementById("upbar-text").innerHTML = "Done"
+            document.getElementById("file-upload-label").style.display = "inline-block"
+            updateMediaList()
+        }
+
+        async function enableEdit(password){
+            var res = await fetch(`/editapi/requestedit?p=${password}`)
+            if (res.ok) {
+                console.log("Edit mode active.")
+            }
+            else {
+                console.log("Invalid password.")
+            }
+        }
+
+        window.onload = init
     </script>
 
     <body>
@@ -80,37 +201,69 @@
                     <div class="ed-menu-title">
                         Pages
                     </div>
-                    <div class="ed-menu-cell">
-                        <div class="ed-menu-label">
-                            /home
-                        </div>
-                        <div class="ed-menu-buttons">
-                            <div class="ed-menu-edit">
-
+                    <div class="ed-menu-cells" id="page-cells">
+                        <div class="ed-menu-cell">
+                            <div class="ed-menu-label">
+                                /home
                             </div>
-                            <div class="ed-menu-delete">
-
+                            <div class="ed-menu-options">
+                                <div class="ed-menu-option">
+                                    Edit
+                                </div>
+                                <div class="ed-menu-option">
+                                    Delete
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>
-            </div>
-            <div class="ed-button">
-                Page Settings
-                <div class="ed-menu-frame">
-                    
+                    <button class="ed-menu-button">
+                        + New Page
+                    </button>
                 </div>
             </div>
             <div class="ed-button">
                 Media
                 <div class="ed-menu-frame">
-                    
+                    <div class="ed-menu-title">
+                        Media
+                    </div>
+                    <div class="ed-menu-cells" id="media-cells">
+                        <div class="ed-menu-cell">
+                            <div class="ed-menu-label">
+                                /home
+                            </div>
+                            <div class="ed-menu-options">
+                                <div class="ed-menu-option">
+                                    Edit
+                                </div>
+                                <div class="ed-menu-option">
+                                    Delete
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <label id="file-upload-label" for="file-upload" class="custom-file-upload">
+                        Upload Media/Font
+                    </label>
+                    <input id="file-upload" type="file" name="upload" onchange="uploadFile();"/>
+                    <div id="upbar-outer" style="height: 30px; width: 100px; background-color: white; position: relative;">
+                    <div id="upbar-inner" style="height: 30px; width: 0%; background-color: green;"></div>
+                    <div id="upbar-text" style="position: absolute; top: 0px; left: 0px; z-index: 1;"></div>
+                </div>
                 </div>
             </div>
             <div class="ed-button">
                 Styles
                 <div class="ed-menu-frame">
-                    
+                    <div class="ed-menu-title">
+                        Style
+                    </div>
+                    <div class="ed-menu-cells" id="style-cells">
+
+                    </div>
+                    <button class="ed-menu-button">
+                        + New Style
+                    </button>
                 </div>
             </div>
 
