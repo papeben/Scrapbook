@@ -33,17 +33,37 @@
                 background-color: #aaa;
                 cursor: pointer;
             }
-            .ed-menu-f {
+            .ed-menu-frame {
                 position: absolute;
                 display: none;
                 bottom: 50px;
                 left: 0px;
                 height: 300px;
                 width: 300px;
+                background-color: #ccc;
+            }
+            .ed-button:hover .ed-menu-frame {
+                display: block;
+            }
+            .ed-menu-cell {
+                display: flex;
+                flex-direction: row;
+                justify-content: space-between;
+                padding: 10px 20px;
+            }
+            .ed-menu-buttons {
+                display: flex;
+                
+            }
+            .ed-menu-edit {
+                height: 20px;
+                width: 20px;
                 background-color: red;
             }
-            .ed-button:hover .ed-menu-f {
-                display: block;
+            .ed-menu-delete {
+                height: 20px;
+                width: 20px;
+                background-color: green;
             }
         </style>
     </head>
@@ -56,25 +76,40 @@
         <div id="ed-frame">
             <div class="ed-button">
                 Pages
-                <div class="ed-menu-f">
+                <div class="ed-menu-frame">
+                    <div class="ed-menu-title">
+                        Pages
+                    </div>
+                    <div class="ed-menu-cell">
+                        <div class="ed-menu-label">
+                            /home
+                        </div>
+                        <div class="ed-menu-buttons">
+                            <div class="ed-menu-edit">
 
+                            </div>
+                            <div class="ed-menu-delete">
+
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
             <div class="ed-button">
                 Page Settings
-                <div class="ed-menu-f">
+                <div class="ed-menu-frame">
                     
                 </div>
             </div>
             <div class="ed-button">
                 Media
-                <div class="ed-menu-f">
+                <div class="ed-menu-frame">
                     
                 </div>
             </div>
             <div class="ed-button">
                 Styles
-                <div class="ed-menu-f">
+                <div class="ed-menu-frame">
                     
                 </div>
             </div>

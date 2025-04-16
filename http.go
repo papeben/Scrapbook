@@ -145,7 +145,7 @@ func httpHandler(response http.ResponseWriter, request *http.Request) {
 			}
 		}
 
-		formTemplate, err = template.ParseFiles("scrapbook.html") // TODO REMOVE LINE
+		formTemplate, err = template.ParseFiles("editor.html") // TODO REMOVE LINE
 		err = formTemplate.Execute(response, page)
 		if err != nil {
 			logMessage(1, err.Error())
