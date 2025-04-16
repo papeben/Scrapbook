@@ -69,11 +69,61 @@
                 display: block;
 
             }
+            .fm-frame {
+                position: absolute;
+                width: 500px;
+                height: 500px;
+                z-index: 1001;
+                background-color: #aaa;
+            }
         </style>
     </head>
     
     <script>
         var Sitemap = {}
+
+        class ForegroundMenu {
+            constructor(title) {
+                this.title = title;
+                this.inputList = []
+            }
+
+            addTextInput(label, placeholder, elementValue){
+                let input = new ForegroundMenuInput(label, "text", [placeholder], elementValue)
+                inputList.push(input)
+            }
+
+            addTextAreaInput(label, placeholder, elementValue){
+                let input = new ForegroundMenuInput(label, "textarea", [placeholder], elementValue)
+                inputList.push(input)
+            }
+
+            addSelectInput(label, options, elementValue){
+                let input = new ForegroundMenuInput(label, "select", options, elementValue)
+                inputList.push(input)
+            }
+
+            addCheckboxInput(label, elementValue){
+                let input = new ForegroundMenuInput(label, "checkbox", elementValue)
+                inputList.push(input)
+            }
+
+            open() {
+                let frame = document.createElement("div")
+                frame.classList.add("fm-frame")
+                frame.innerHTML = this.title
+                document.getElementById("page-frame").appendChild(frame)
+            }
+        }
+
+        class ForegroundMenuInput {
+            constructor(label, inputType, options, elementValue) {
+                this.label = label
+                this.inputType = inputType
+                this.options = options
+                this.elementValue = elementValue
+            }
+        }
 
         async function init(){
             var res = await fetch(`/sitemap.json`)
@@ -92,7 +142,7 @@
             let outer = document.getElementById("page-cells")
             outer.innerHTML = ""
             for (let i = 0; i < Sitemap.Pages.length; i++){
-                outer.append(createToolbarButton(Sitemap.Pages[i].Header.URI, [{label: "edit", action: ()=>{alert(1)}}, {label: "delete", action: ()=>{alert(2)}}]))
+                outer.append(createToolbarButton(Sitemap.Pages[i].Header.URI, [{label: "view", action: ()=>{switchToPage(Sitemap.Pages[i].Header.URI)}}, {label: "edit", action: ()=>{pageSettings(Sitemap.Pages[i].Header.URI)}}, {label: "delete", action: ()=>{alert(2)}}]))
             }
         }
 
@@ -190,10 +240,57 @@
             }
         }
 
+        function createNewPage(){
+            let i = 0;
+            while (i < 100) {
+                valid = true
+                for (var j = 0; j < Sitemap.Pages.length; j++){
+                    if (Sitemap.Pages[j].Header.URI == `/newpage${i}`) {
+                        valid = false
+                    }
+                }
+                if (valid) {
+                    break
+                }
+                i++
+            }
+            Sitemap.Pages.push({
+                Header: {
+                    Description: "Default Description",
+                    HasPreviewImage: false,
+                    PreviewImage: "",
+                    Title: "New Page",
+                    URI: `/newpage${i}`,
+                },
+                Elements: []
+            })
+            populatePagesMenu()
+        }
+
+        function switchToPage(uri){
+            let title = "404 - Not Found"
+            for (let i = 0; i < Sitemap.Pages.length; i++){
+                if (Sitemap.Pages[i].Header.URI == uri){
+                    title = Sitemap.Pages[i].Header.Title
+                }
+            }
+            window.history.pushState("Test", title, uri);
+            document.title = title
+            //renderPage()
+        }
+
+        function pageSettings(pageURL){
+            let menu = new ForegroundMenu(pageURL, [])
+            menu.open()
+        }
+
         window.onload = init
     </script>
 
     <body>
+        <div id="page-frame">
+
+        </div>
         <div id="ed-frame">
             <div class="ed-button">
                 Pages
@@ -216,7 +313,7 @@
                             </div>
                         </div>
                     </div>
-                    <button class="ed-menu-button">
+                    <button class="ed-menu-button" onclick="createNewPage()">
                         + New Page
                     </button>
                 </div>
