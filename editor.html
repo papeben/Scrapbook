@@ -125,6 +125,11 @@
                 this.inputList.push(input)
             }
 
+            addUploadInput(label){
+                let input = new ForegroundMenuInput(label, "upload", [], null, null)
+                this.inputList.push(input)
+            }
+
             addHeading(){
 
             }
@@ -177,6 +182,9 @@
                     inputRow.appendChild(input)
                 } else if (this.inputType == "checkbox"){
                     let input = newCheckboxInput(this.objectPointer, this.objectField)
+                    inputRow.appendChild(input)
+                } else if (this.inputType == "upload"){
+                    let input = newUploadInput()
                     inputRow.appendChild(input)
                 }
                 return inputRow
@@ -237,11 +245,23 @@
             return input
         }
 
+        function newUploadInput() {
+            let input = document.createElement("input")
+            input.type = "file"
+            input.name = "upload"
+            input.classList.add("fm-input-upload")
+            return input
+        }
+
         function populatePagesMenu(){
             let outer = document.getElementById("page-cells")
             outer.innerHTML = ""
             for (let i = 0; i < Sitemap.Pages.length; i++){
-                outer.append(createToolbarButton(Sitemap.Pages[i].Header.URI, [{label: "view", action: ()=>{switchToPage(Sitemap.Pages[i].Header.URI)}}, {label: "edit", action: ()=>{pageSettings(Sitemap.Pages[i])}}, {label: "delete", action: ()=>{alert(2)}}]))
+                outer.append(createToolbarButton(Sitemap.Pages[i].Header.URI, [
+                {label: "view", action: ()=>{switchToPage(Sitemap.Pages[i].Header.URI)}},
+                {label: "edit", action: ()=>{pageSettings(Sitemap.Pages[i])}},
+                {label: "delete", action: ()=>{deletePage(i)}}
+                ]))
             }
         }
 
@@ -249,7 +269,9 @@
             let outer = document.getElementById("media-cells")
             outer.innerHTML = ""
             for (let i = 0; i < Sitemap.Media.length; i++){
-                outer.append(createToolbarButton(Sitemap.Media[i].MediaName, [{label: "edit", action: ()=>{alert(1)}}, {label: "delete", action: ()=>{alert(2)}}]))
+                outer.append(createToolbarButton(Sitemap.Media[i].MediaName, [
+                {label: "delete", action: ()=>{alert(2)}}
+                ]))
             }
         }
 
@@ -366,6 +388,11 @@
             populatePagesMenu()
         }
 
+        function deletePage(i){
+            Sitemap.Pages.splice(i, 1)
+            populatePagesMenu()
+        }
+
         function switchToPage(uri){
             let title = "404 - Not Found"
             for (let i = 0; i < Sitemap.Pages.length; i++){
@@ -390,6 +417,12 @@
                 }
             }
             menu.addSelectInput("Preview Image", previewImageOptions, page.Header, "PreviewImage")
+            menu.open()
+        }
+
+        function uploadMenu(){
+            let menu = new ForegroundMenu("Upload File")
+            menu.addUploadInput("Upload file:")
             menu.open()
         }
 
@@ -470,15 +503,11 @@
                             </div>
                         </div>
                     </div>
-                    <label id="file-upload-label" for="file-upload" class="custom-file-upload">
-                        Upload Media/Font
-                    </label>
-                    <input id="file-upload" type="file" name="upload" onchange="uploadFile();"/>
-                    <div id="upbar-outer" style="height: 30px; width: 100px; background-color: white; position: relative;">
-                    <div id="upbar-inner" style="height: 30px; width: 0%; background-color: green;"></div>
-                    <div id="upbar-text" style="position: absolute; top: 0px; left: 0px; z-index: 1;"></div>
+                    <button class="ed-menu-button" onclick="uploadMenu()">
+                        + Upload Media
+                    </button>
                 </div>
-                </div>
+                
             </div>
             <div class="ed-button">
                 Styles
