@@ -148,6 +148,9 @@
                 } else if (this.inputType == "select"){
                     let input = newSelectInput(this.options, this.objectPointer, this.objectField)
                     inputRow.appendChild(input)
+                } else if (this.inputType == "checkbox"){
+                    let input = newCheckboxInput(this.objectPointer, this.objectField)
+                    inputRow.appendChild(input)
                 }
                 return inputRow
             }
@@ -195,6 +198,14 @@
                 option.value = options[i].value
                 input.appendChild(option)
             }
+            tieObjectValues(objectPointer, objectField, input)
+            return input
+        }
+
+        function newCheckboxInput( objectPointer, objectField) {
+            let input = document.createElement("input")
+            input.type = "checkbox"
+            input.classList.add("fm-input-checkbox")
             tieObjectValues(objectPointer, objectField, input)
             return input
         }
@@ -344,13 +355,13 @@
             let menu = new ForegroundMenu(page.Header.URI)
             menu.addTextInput("Page Title", "Set a title...", page.Header, "Title")
             menu.addTextInput("Page Description", "Set a description...", page.Header, "Description")
+            menu.addCheckboxInput("Enable Preview Image", page.Header, "HasPreviewImage")
             let previewImageOptions = [{"text": "None Selected", "value": ""}]
             for (let i = 0; i < Sitemap.Media.length; i++){
                 if (Sitemap.Media[i].MediaType == "image"){
                     previewImageOptions.push({"text": Sitemap.Media[i].MediaName, "value": Sitemap.Media[i].MediaID})
                 }
             }
-
             menu.addSelectInput("Preview Image", previewImageOptions, page.Header, "PreviewImage")
             menu.open()
         }
