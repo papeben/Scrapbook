@@ -76,6 +76,18 @@
                 z-index: 1001;
                 background-color: #aaa;
             }
+            .fm-frame-header {
+                padding: 10px;
+                width: 100%;
+                display: flex;
+                justify-content: center;
+            }
+            .fm-frame-footer {
+                position: absolute;
+                bottom: 0px;
+                left: 0px;
+                width: 100%;
+            }
             .fm-input-row {
                 display: flex;
             }
@@ -89,6 +101,7 @@
             constructor(title) {
                 this.title = title;
                 this.inputList = []
+                this.form = newDiv(["fm-frame"])
             }
 
             addTextInput(label, placeholder, objectPointer, objectField){
@@ -117,14 +130,28 @@
             }
 
             open() {
-                let form = newDiv(["fm-frame"])
-                form.innerHTML = this.title
-                document.getElementById("page-frame").appendChild(form)
+                let header = newDiv(["fm-frame-header"]) // HEader
+                header.innerHTML = this.title
+                this.form.appendChild(header)
+
+                let footer = newDiv(["fm-frame-footer"]) // Footer
+                this.form.appendChild(footer)
+                let exit = document.createElement("button")
+                exit.onclick = ()=>{
+                    this.close()
+                }
+                exit.innerHTML = "Close Menu"
+                footer.appendChild(exit)
+
                 for (let i = 0; i < this.inputList.length; i++){
-                    form.appendChild(this.inputList[i].renderInput())
+                    this.form.appendChild(this.inputList[i].renderInput())
                 }
 
-                
+                document.getElementById("page-frame").appendChild(this.form)
+            }
+
+            close(){
+                this.form.remove()
             }
         }
 
