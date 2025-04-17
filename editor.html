@@ -113,7 +113,7 @@
             }
 
             addHeading(){
-                
+
             }
 
             open() {
@@ -145,6 +145,9 @@
                 if (this.inputType == "text"){
                     let input = newTextInput(this.options, this.objectPointer, this.objectField)
                     inputRow.appendChild(input)
+                } else if (this.inputType == "select"){
+                    let input = newSelectInput(this.options, this.objectPointer, this.objectField)
+                    inputRow.appendChild(input)
                 }
                 return inputRow
             }
@@ -175,11 +178,23 @@
         }
 
         function newTextInput(placeholder, objectPointer, objectField) {
-            console.log(objectPointer)
             let input = document.createElement("input")
             input.type = "text"
             input.classList.add("fm-input-text")
             input.placeholder = placeholder
+            tieObjectValues(objectPointer, objectField, input)
+            return input
+        }
+
+        function newSelectInput(options, objectPointer, objectField) {
+            let input = document.createElement("select")
+            input.classList.add("fm-input-select")
+            for (let i = 0; i < options.length; i++){
+                let option = document.createElement("option")
+                option.innerHTML = options[i].text
+                option.value = options[i].value
+                input.appendChild(option)
+            }
             tieObjectValues(objectPointer, objectField, input)
             return input
         }
@@ -329,6 +344,14 @@
             let menu = new ForegroundMenu(page.Header.URI)
             menu.addTextInput("Page Title", "Set a title...", page.Header, "Title")
             menu.addTextInput("Page Description", "Set a description...", page.Header, "Description")
+            let previewImageOptions = [{"text": "None Selected", "value": ""}]
+            for (let i = 0; i < Sitemap.Media.length; i++){
+                if (Sitemap.Media[i].MediaType == "image"){
+                    previewImageOptions.push({"text": Sitemap.Media[i].MediaName, "value": Sitemap.Media[i].MediaID})
+                }
+            }
+
+            menu.addSelectInput("Preview Image", previewImageOptions, page.Header, "PreviewImage")
             menu.open()
         }
 
