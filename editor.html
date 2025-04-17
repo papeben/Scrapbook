@@ -76,6 +76,9 @@
                 z-index: 1001;
                 background-color: #aaa;
             }
+            .fm-input-row {
+                display: flex;
+            }
         </style>
     </head>
     
@@ -88,40 +91,62 @@
                 this.inputList = []
             }
 
-            addTextInput(label, placeholder, elementValue){
-                let input = new ForegroundMenuInput(label, "text", [placeholder], elementValue)
-                inputList.push(input)
+            addTextInput(label, placeholder, objectPointer, objectField){
+                console.log(objectPointer)
+                let input = new ForegroundMenuInput(label, "text", [placeholder], objectPointer, objectField)
+                this.inputList.push(input)
             }
 
-            addTextAreaInput(label, placeholder, elementValue){
-                let input = new ForegroundMenuInput(label, "textarea", [placeholder], elementValue)
-                inputList.push(input)
+            addTextAreaInput(label, placeholder, objectPointer, objectField){
+                let input = new ForegroundMenuInput(label, "textarea", [placeholder], objectPointer, objectField)
+                this.inputList.push(input)
             }
 
-            addSelectInput(label, options, elementValue){
-                let input = new ForegroundMenuInput(label, "select", options, elementValue)
-                inputList.push(input)
+            addSelectInput(label, options, objectPointer, objectField){
+                let input = new ForegroundMenuInput(label, "select", options, objectPointer, objectField)
+                this.inputList.push(input)
             }
 
-            addCheckboxInput(label, elementValue){
-                let input = new ForegroundMenuInput(label, "checkbox", elementValue)
-                inputList.push(input)
+            addCheckboxInput(label, objectPointer, objectField){
+                let input = new ForegroundMenuInput(label, "checkbox", [], objectPointer, objectField)
+                this.inputList.push(input)
+            }
+
+            addHeading(){
+                
             }
 
             open() {
-                let frame = document.createElement("div")
-                frame.classList.add("fm-frame")
-                frame.innerHTML = this.title
-                document.getElementById("page-frame").appendChild(frame)
+                let form = newDiv(["fm-frame"])
+                form.innerHTML = this.title
+                document.getElementById("page-frame").appendChild(form)
+                for (let i = 0; i < this.inputList.length; i++){
+                    form.appendChild(this.inputList[i].renderInput())
+                }
+
+                
             }
         }
 
         class ForegroundMenuInput {
-            constructor(label, inputType, options, elementValue) {
+            constructor(label, inputType, options, objectPointer, objectField) {
                 this.label = label
                 this.inputType = inputType
                 this.options = options
-                this.elementValue = elementValue
+                this.objectPointer = objectPointer
+                this.objectField = objectField
+            }
+
+            renderInput(){
+                let inputRow = newDiv(["fm-input-row"])
+                let inputLabel = newDiv(["fm-input-label"])
+                inputLabel.innerHTML = this.label
+                inputRow.appendChild(inputLabel)
+                if (this.inputType == "text"){
+                    let input = newTextInput(this.options, this.objectPointer, this.objectField)
+                    inputRow.appendChild(input)
+                }
+                return inputRow
             }
         }
 
@@ -138,11 +163,32 @@
             }
         }
 
+        function newDiv(classList, id) {
+            let newDiv = document.createElement("div")
+            for (let i = 0; i < classList.length; i++){
+                newDiv.classList.add(classList[i])
+            }
+            if (id != null) {
+                newDiv.id = id
+            }
+            return newDiv
+        }
+
+        function newTextInput(placeholder, objectPointer, objectField) {
+            console.log(objectPointer)
+            let input = document.createElement("input")
+            input.type = "text"
+            input.classList.add("fm-input-text")
+            input.placeholder = placeholder
+            tieObjectValues(objectPointer, objectField, input)
+            return input
+        }
+
         function populatePagesMenu(){
             let outer = document.getElementById("page-cells")
             outer.innerHTML = ""
             for (let i = 0; i < Sitemap.Pages.length; i++){
-                outer.append(createToolbarButton(Sitemap.Pages[i].Header.URI, [{label: "view", action: ()=>{switchToPage(Sitemap.Pages[i].Header.URI)}}, {label: "edit", action: ()=>{pageSettings(Sitemap.Pages[i].Header.URI)}}, {label: "delete", action: ()=>{alert(2)}}]))
+                outer.append(createToolbarButton(Sitemap.Pages[i].Header.URI, [{label: "view", action: ()=>{switchToPage(Sitemap.Pages[i].Header.URI)}}, {label: "edit", action: ()=>{pageSettings(Sitemap.Pages[i])}}, {label: "delete", action: ()=>{alert(2)}}]))
             }
         }
 
@@ -279,9 +325,33 @@
             //renderPage()
         }
 
-        function pageSettings(pageURL){
-            let menu = new ForegroundMenu(pageURL, [])
+        function pageSettings(page){
+            let menu = new ForegroundMenu(page.Header.URI)
+            menu.addTextInput("Page Title", "Set a title...", page.Header, "Title")
+            menu.addTextInput("Page Description", "Set a description...", page.Header, "Description")
             menu.open()
+        }
+
+        function tieObjectValues(objectPointer, field, input){
+            if (input.type == "checkbox"){
+                input.checked = objectPointer[field]
+                input.oninput = function(){
+                    if (input.checked){
+                        objectPointer[field] = true
+                    }
+                    else {
+                        objectPointer[field] = false
+                    }
+                    //renderPage()
+                }
+            }
+            else {
+                input.value = objectPointer[field]
+                input.oninput = function(){
+                    objectPointer[field] = input.value
+                    //renderPage()
+                }
+            }
         }
 
         window.onload = init
