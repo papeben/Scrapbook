@@ -38,7 +38,7 @@
                 display: none;
                 bottom: 50px;
                 left: 0px;
-                height: 300px;
+                min-height: 300px;
                 width: 500px;
                 background-color: #ccc;
             }
@@ -186,6 +186,7 @@
                 } else if (this.inputType == "upload"){
                     let input = newUploadInput()
                     inputRow.appendChild(input)
+                    inputRow.id = "upload-frame"
                 }
                 return inputRow
             }
@@ -250,6 +251,8 @@
             input.type = "file"
             input.name = "upload"
             input.classList.add("fm-input-upload")
+            input.id = "file-upload"
+            input.onchange = uploadFile
             return input
         }
 
@@ -304,11 +307,17 @@
         }
 
         function uploadFile() {
-            var file = document.getElementById("file-upload").files[0]
-            document.getElementById("file-upload-label").style.display = "none"
+            var fileInput = document.getElementById("file-upload")
+            var outerBar = document.getElementById("upload-frame")
+            fileInput.style.display = "none"
+            var file = fileInput.files[0]
             var formdata = new FormData();
             formdata.append("upload", file);
             var uploadReq = new XMLHttpRequest();
+            var innerBar = newDiv(["upload-inner"], "upload-inner")
+            outerBar.appendChild(innerBar)
+            var status = newDiv(["upload-text"], "upload-text")
+            outerBar.append(status)
             uploadReq.upload.addEventListener("progress", progressHandler, false);
             uploadReq.addEventListener("load", completeHandler, false);
             uploadReq.addEventListener("error", errorHandler, false);
@@ -318,8 +327,8 @@
         }
 
         function progressHandler(event) {
-            var bar = document.getElementById("upbar-inner");
-            var uploadStatus = document.getElementById("upbar-text");
+            var bar = document.getElementById("upload-inner");
+            var uploadStatus = document.getElementById("upload-text");
             var percent = (event.loaded / event.total) * 100;
             if (percent == 100) {
                 uploadStatus.innerHTML = `Processing`;
@@ -333,21 +342,18 @@
         }
 
         function errorHandler(event){
-            document.getElementById("upbar-inner").style.backgroundColor = "red";
-            document.getElementById("upbar-text").innerHTML = "Error"
-            document.getElementById("file-upload-label").style.display = "inline-block"
+            document.getElementById("upload-inner").style.backgroundColor = "red";
+            document.getElementById("upload-text").innerHTML = "Error"
         }
 
         function abortHandler(event){
-            document.getElementById("upbar-inner").style.backgroundColor = "red";
-            document.getElementById("upbar-text").innerHTML = "Aborted"
-            document.getElementById("file-upload-label").style.display = "inline-block"
+            document.getElementById("upload-inner").style.backgroundColor = "red";
+            document.getElementById("upload-text").innerHTML = "Aborted"
         }
 
         function completeHandler(event){
-            document.getElementById("upbar-inner").style.backgroundColor = "green";
-            document.getElementById("upbar-text").innerHTML = "Done"
-            document.getElementById("file-upload-label").style.display = "inline-block"
+            document.getElementById("upload-inner").style.backgroundColor = "green";
+            document.getElementById("upload-text").innerHTML = "Done"
             updateMediaList()
         }
 
@@ -445,6 +451,17 @@
                     objectPointer[field] = input.value
                     //renderPage()
                 }
+            }
+        }
+
+        async function updateMediaList(){
+            var res = await fetch(`/sitemap.json`)
+            if (res.status === 200) {
+                let oldSitemap = await res.json()
+                Sitemap.Media = oldSitemap.Media
+                populateMediaMenu()
+            } else {
+                alert("Error fetching site data.")
             }
         }
 
