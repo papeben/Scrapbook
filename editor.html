@@ -130,8 +130,9 @@
                 this.inputList.push(input)
             }
 
-            addHeading(){
-
+            addHeading(label){
+                let input = new ForegroundMenuInput(label, "none", [], null, null)
+                this.inputList.push(input)
             }
 
             open() {
@@ -187,7 +188,7 @@
                     let input = newUploadInput()
                     inputRow.appendChild(input)
                     inputRow.id = "upload-frame"
-                }
+                } 
                 return inputRow
             }
         }
@@ -282,7 +283,10 @@
             let outer = document.getElementById("style-cells")
             outer.innerHTML = ""
             for (let i = 0; i < Sitemap.Styles.length; i++){
-                outer.append(createToolbarButton(Sitemap.Styles[i].Name, [{label: "edit", action: ()=>{alert(1)}}, {label: "delete", action: ()=>{alert(2)}}]))
+                outer.append(createToolbarButton(Sitemap.Styles[i].Name, [
+                {label: "edit", action: ()=>{styleSettings(Sitemap.Styles[i])}},
+                {label: "delete", action: ()=>{alert(2)}}
+                ]))
             }
         }
 
@@ -412,7 +416,7 @@
         }
 
         function pageSettings(page){
-            let menu = new ForegroundMenu(page.Header.URI)
+            let menu = new ForegroundMenu(`Edit page: ${page.Header.URI}`)
             menu.addTextInput("Page Title", "Set a title...", page.Header, "Title")
             menu.addTextInput("Page Description", "Set a description...", page.Header, "Description")
             menu.addCheckboxInput("Enable Preview Image", page.Header, "HasPreviewImage")
@@ -423,6 +427,27 @@
                 }
             }
             menu.addSelectInput("Preview Image", previewImageOptions, page.Header, "PreviewImage")
+            menu.open()
+        }
+
+        function styleSettings(style){
+            let menu = new ForegroundMenu(`Edit Style: ${style.Name}`)
+            menu.addHeading("General Style Settings")
+            menu.addTextInput("Name", "Enter style name...", style, "Name")
+            menu.addTextInput("Margin", "10px", style, "Margin")
+            menu.addTextInput("Padding", "10px", style, "Padding")
+            menu.addHeading("Text Settings")
+            menu.addTextInput("Font Size", "10px", style, "FontSize")
+            menu.addTextInput("Font Family", "sans-serif", style, "FontFamily")
+            menu.addTextInput("Font Colour", "#000000", style, "FontColor")
+            menu.addTextInput("Font Weight", "normal", style, "FontWeight")
+            menu.addHeading("Border Settings")
+            menu.addTextInput("Border Width", "1px", style, "BorderWidth")
+            menu.addTextInput("Border Style", "solid", style, "BorderStyle")
+            menu.addTextInput("Border Color", "#000000", style, "BorderColor")
+            menu.addHeading("Background Settings")
+            menu.addTextInput("Background Color", "#000000", style, "BackgroundData")
+
             menu.open()
         }
 
@@ -443,6 +468,9 @@
                         objectPointer[field] = false
                     }
                     //renderPage()
+                    populateMediaMenu()
+                    populatePagesMenu()
+                    populateStyleMenu()
                 }
             }
             else {
@@ -450,6 +478,9 @@
                 input.oninput = function(){
                     objectPointer[field] = input.value
                     //renderPage()
+                    populateMediaMenu()
+                    populatePagesMenu()
+                    populateStyleMenu()
                 }
             }
         }
